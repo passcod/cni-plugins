@@ -1,6 +1,11 @@
-use std::{collections::HashMap, convert::Infallible, env::{self, VarError}, io::{Read, stdin}, path::{MAIN_SEPARATOR, PathBuf}, process::exit, str::FromStr};
+use std::{collections::HashMap, convert::Infallible, env::{self, VarError, split_paths}, io::{Read, stdin}, path::{PathBuf}, process::exit, str::FromStr};
 
+use semver::{Version, VersionReq};
+use serde::{Deserialize, Deserializer, Serialize};
+use serde_json::Value;
 use thiserror::Error;
+
+const COMPATIBLE_VERSIONS: &str = "=0.4.0||^1.0.0";
 
 #[derive(Debug, Error)]
 enum CniError {
@@ -10,10 +15,13 @@ enum CniError {
     #[error(transparent)]
     Json(#[from] serde_json::Error),
 
-    #[error("missing environment variable: {var}")]
+    #[error("plugin does not understand CNI version: {0}")]
+    Incompatible(Version),
+
+    #[error("missing environment variable: {var}: {err}")]
     MissingEnv { var: &'static str, #[source] err: VarError },
 
-    #[error("environment variable has invalid format: {var}")]
+    #[error("environment variable has invalid format: {var}: {err}")]
     InvalidEnv { var: &'static str, #[source] err: Box<dyn std::error::Error> },
 }
 
@@ -26,7 +34,7 @@ enum Command {
 }
 
 #[derive(Clone, Copy, Debug, Error)]
-#[error("CNI_COMMAND must be one of ADD, DEL, CHECK, VERSION")]
+#[error("must be one of ADD, DEL, CHECK, VERSION")]
 struct InvalidCommandError;
 
 impl FromStr for Command {
@@ -47,18 +55,19 @@ impl FromStr for Command {
 struct CniArgs(pub HashMap<String, String>);
 
 #[derive(Clone, Copy, Debug, Error)]
-#[error("CNI_ARGS must be in K=V;L=W format")]
+#[error("must be in K=V;L=W format")]
 struct InvalidArgsError;
 
 impl FromStr for CniArgs {
     type Err = InvalidArgsError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self(s.split(';').map(|p| {
+        Ok(Self(s.split(';').filter_map(|p| {
             let pair: Vec<&str> = p.splitn(2, '=').collect();
             match pair.as_slice() {
-                [head, tail] => Ok((head.to_string(), tail.to_string())),
-                _ => Err(InvalidArgsError)
+                [""] => None,
+                [head, tail] => Some(Ok((head.to_string(), tail.to_string()))),
+                _ => Some(Err(InvalidArgsError))
             }
         }).collect::<Result<_, InvalidArgsError>>()?))
     }
@@ -71,8 +80,64 @@ impl FromStr for CniPath {
     type Err = Infallible;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self(s.split(MAIN_SEPARATOR).map(PathBuf::from).collect()))
+        Ok(Self(split_paths(s).map(PathBuf::from).collect()))
     }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct NetworkConfig {
+    #[serde(deserialize_with = "deserialize_version")]
+    pub cni_version: Version,
+    pub name: String,
+    #[serde(rename = "type")]
+    pub plugin: String,
+    #[serde(default)]
+    pub args: HashMap<String, Value>,
+    #[serde(default)]
+    pub ip_masq: bool,
+    #[serde(default)]
+    pub ipam: Option<IpamConfig>,
+    #[serde(default)]
+    pub dns: Option<DnsConfig>,
+
+    #[serde(default)]
+    pub prev_result: Option<Value>,
+
+    #[serde(flatten)]
+    pub specific: HashMap<String, Value>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct IpamConfig {
+    #[serde(rename = "type")]
+    pub plugin: String,
+
+    #[serde(flatten)]
+    pub specific: HashMap<String, Value>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DnsConfig {
+    #[serde(default)]
+    pub nameservers: Vec<String>,
+    #[serde(default)]
+    pub domain: Option<String>,
+    #[serde(default)]
+    pub search: Vec<String>,
+    #[serde(default)]
+    pub options: Vec<String>,
+}
+
+pub fn deserialize_version<'de, D>(deserializer: D) -> Result<Version, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    use serde::de::Error;
+    let j = String::deserialize(deserializer)?;
+    Version::from_str(&j).map_err(Error::custom)
 }
 
 #[derive(Clone, Debug)]
@@ -83,7 +148,7 @@ struct Cni {
     pub ifname: String,
     pub args: HashMap<String, String>,
     pub path: Vec<PathBuf>,
-    pub config: serde_json::Value,
+    pub config: NetworkConfig,
 }
 
 impl Cni {
@@ -103,7 +168,11 @@ impl Cni {
 
         let mut netcon_bytes = Vec::with_capacity(1024);
         stdin().read_to_end(&mut netcon_bytes)?;
-        let netcon: serde_json::Value = serde_json::from_slice(&netcon_bytes)?;
+        let netcon: NetworkConfig = serde_json::from_slice(&netcon_bytes)?;
+
+        if !VersionReq::parse(COMPATIBLE_VERSIONS).unwrap().matches(&netcon.cni_version) {
+            return Err(CniError::Incompatible(netcon.cni_version));
+        }
 
         Ok(Self {
             command: load_env("CNI_COMMAND")?,
@@ -120,19 +189,23 @@ impl Cni {
         match Self::from_env() {
             Ok(c) => c,
             Err(CniError::Io(e)) => {
-                eprintln!("{:?}", e);
+                eprintln!("{}", e);
                 exit(5);
             }
             Err(CniError::Json(e)) => {
-                eprintln!("{:?}", e);
+                eprintln!("{}", e);
                 exit(6);
             }
+            Err(e @ CniError::Incompatible(_)) => {
+                eprintln!("{}", e);
+                exit(1);
+            }
             Err(e @ CniError::MissingEnv { .. }) => {
-                eprintln!("{:?}", e);
+                eprintln!("{}", e);
                 exit(4);
             }
             Err(e @ CniError::InvalidEnv { .. }) => {
-                eprintln!("{:?}", e);
+                eprintln!("{}", e);
                 exit(4);
             }
         }
