@@ -153,17 +153,17 @@ where
 #[derive(Clone, Debug)]
 struct Cni {
     pub command: Command,
-    pub container_id: String,
-    pub netns: PathBuf,
-    pub ifname: String,
+    pub container_id: Option<String>,
+    pub netns: Option<PathBuf>,
+    pub ifname: Option<String>,
     pub args: HashMap<String, String>,
     pub path: Vec<PathBuf>,
-    pub config: NetworkConfig,
+    pub config: Option<NetworkConfig>,
 }
 
 impl Cni {
     pub fn from_env() -> Result<Self, CniError> {
-        fn load_env<T>(var: &'static str) -> Result<T, CniError>
+        fn require_env<T>(var: &'static str) -> Result<T, CniError>
         where
             T: FromStr,
             T::Err : std::error::Error + 'static,
@@ -172,46 +172,53 @@ impl Cni {
                 .map_err(|err| CniError::MissingEnv { var, err })
                 .and_then(|val| val.parse().map_err(|err| CniError::InvalidEnv { var, err: Box::new(err) }))
         }
+        fn load_env<T>(var: &'static str) -> Result<Option<T>, CniError>
+        where
+            T: FromStr,
+            T::Err : std::error::Error + 'static,
+        {
+           require_env(var).map(Some).or_else(|err| if let CniError::MissingEnv { .. } = err {
+                Ok(None)
+            } else {
+                Err(err)
+            })
+        }
 
-        let args: CniArgs = load_env("CNI_ARGS").map(Some).or_else(|err| if let CniError::MissingEnv { .. } = err {
-            Ok(None)
-        } else {
-            Err(err)
-        })?.unwrap_or_default();
-        let path: CniPath = load_env("CNI_PATH").map(Some).or_else(|err| if let CniError::MissingEnv { .. } = err {
-            Ok(None)
-        } else {
-            Err(err)
-        })?.unwrap_or_default();
+        let args: CniArgs = load_env("CNI_ARGS")?.unwrap_or_default();
+        let path: CniPath = load_env("CNI_PATH")?.unwrap_or_default();
 
         let mut netcon_bytes = Vec::with_capacity(1024);
         stdin().read_to_end(&mut netcon_bytes)?;
-        let netcon: NetworkConfig = serde_json::from_slice(&netcon_bytes)?;
+        let config = if netcon_bytes.is_empty() { None } else {
+            let c: NetworkConfig = serde_json::from_slice(&netcon_bytes)?;
 
-        if !VersionReq::parse(COMPATIBLE_VERSIONS).unwrap().matches(&netcon.cni_version) {
-            return Err(CniError::Incompatible(netcon.cni_version));
-        }
+            if !VersionReq::parse(COMPATIBLE_VERSIONS).unwrap().matches(&c.cni_version) {
+                return Err(CniError::Incompatible(c.cni_version));
+            }
 
-        let container_id: String = load_env("CNI_CONTAINERID")?;
-        {
-            if container_id.is_empty() {
+            Some(c)
+        };
+
+        let container_id: Option<String> = load_env("CNI_CONTAINERID")?;
+        if let Some(ref id) = container_id {
+            if id.is_empty() {
                 return Err(CniError::InvalidEnv { var: "CNI_CONTAINERID", err: Box::new(EmptyValueError) });
             }
 
             let re = Regex::new(r"^[a-z0-9][a-z0-9_.\-]*$").unwrap();
-            if !re.is_match(&container_id) {
+            if !re.is_match(&id) {
                 return Err(CniError::InvalidEnv { var: "CNI_CONTAINERID", err: Box::new(RegexValueError(re)) });
             }
         }
 
         Ok(Self {
-            command: load_env("CNI_COMMAND")?,
+            command: require_env("CNI_COMMAND")?,
             container_id,
             netns: load_env("CNI_NETNS")?,
             ifname: load_env("CNI_IFNAME")?,
             args: args.0,
             path: path.0,
-            config: netcon,
+            config,
         })
     }
 
