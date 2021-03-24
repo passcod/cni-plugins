@@ -27,6 +27,9 @@ enum CniError {
     #[error("plugin does not understand CNI version: {0}")]
     Incompatible(Version),
 
+    #[error("missing input network config")]
+    MissingInput,
+
     #[error("missing environment variable: {var}: {err}")]
     MissingEnv {
         var: &'static str,
@@ -177,7 +180,7 @@ struct Cni {
     pub ifname: Option<String>,
     pub args: HashMap<String, String>,
     pub path: Vec<PathBuf>,
-    pub config: Option<NetworkConfig>,
+    pub config: NetworkConfig,
 }
 
 impl Cni {
@@ -215,20 +218,17 @@ impl Cni {
 
         let mut netcon_bytes = Vec::with_capacity(1024);
         stdin().read_to_end(&mut netcon_bytes)?;
-        let config = if netcon_bytes.is_empty() {
-            None
-        } else {
-            let c: NetworkConfig = serde_json::from_slice(&netcon_bytes)?;
+        if netcon_bytes.is_empty() {
+            return Err(CniError::MissingInput);
+        }
 
-            if !VersionReq::parse(COMPATIBLE_VERSIONS)
-                .unwrap()
-                .matches(&c.cni_version)
-            {
-                return Err(CniError::Incompatible(c.cni_version));
-            }
-
-            Some(c)
-        };
+        let config: NetworkConfig = serde_json::from_slice(&netcon_bytes)?;
+        if !VersionReq::parse(COMPATIBLE_VERSIONS)
+            .unwrap()
+            .matches(&config.cni_version)
+        {
+            return Err(CniError::Incompatible(config.cni_version));
+        }
 
         let container_id: Option<String> = load_env("CNI_CONTAINERID")?;
         if let Some(ref id) = container_id {
@@ -273,6 +273,10 @@ impl Cni {
             Err(e @ CniError::Incompatible(_)) => {
                 eprintln!("{}", e);
                 exit(1);
+            }
+            Err(e @ CniError::MissingInput) => {
+                eprintln!("{}", e);
+                exit(7);
             }
             Err(e @ CniError::MissingEnv { .. }) => {
                 eprintln!("{}", e);
