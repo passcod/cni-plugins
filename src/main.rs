@@ -1,5 +1,6 @@
 use std::{collections::HashMap, convert::Infallible, env::{self, VarError, split_paths}, io::{Read, stdin}, path::{PathBuf}, process::exit, str::FromStr};
 
+use regex::Regex;
 use semver::{Version, VersionReq};
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
@@ -24,6 +25,15 @@ enum CniError {
     #[error("environment variable has invalid format: {var}: {err}")]
     InvalidEnv { var: &'static str, #[source] err: Box<dyn std::error::Error> },
 }
+
+
+#[derive(Clone, Copy, Debug, Error)]
+#[error("must not be empty")]
+struct EmptyValueError;
+
+#[derive(Clone, Debug, Error)]
+#[error("must match regex: {0}")]
+struct RegexValueError(Regex);
 
 #[derive(Clone, Copy, Debug)]
 enum Command {
@@ -51,7 +61,7 @@ impl FromStr for Command {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 struct CniArgs(pub HashMap<String, String>);
 
 #[derive(Clone, Copy, Debug, Error)]
@@ -73,7 +83,7 @@ impl FromStr for CniArgs {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 struct CniPath(pub Vec<PathBuf>);
 
 impl FromStr for CniPath {
@@ -163,8 +173,16 @@ impl Cni {
                 .and_then(|val| val.parse().map_err(|err| CniError::InvalidEnv { var, err: Box::new(err) }))
         }
 
-        let args: CniArgs = load_env("CNI_ARGS")?;
-        let path: CniPath = load_env("CNI_PATH")?;
+        let args: CniArgs = load_env("CNI_ARGS").map(Some).or_else(|err| if let CniError::MissingEnv { .. } = err {
+            Ok(None)
+        } else {
+            Err(err)
+        })?.unwrap_or_default();
+        let path: CniPath = load_env("CNI_PATH").map(Some).or_else(|err| if let CniError::MissingEnv { .. } = err {
+            Ok(None)
+        } else {
+            Err(err)
+        })?.unwrap_or_default();
 
         let mut netcon_bytes = Vec::with_capacity(1024);
         stdin().read_to_end(&mut netcon_bytes)?;
@@ -174,9 +192,21 @@ impl Cni {
             return Err(CniError::Incompatible(netcon.cni_version));
         }
 
+        let container_id: String = load_env("CNI_CONTAINERID")?;
+        {
+            if container_id.is_empty() {
+                return Err(CniError::InvalidEnv { var: "CNI_CONTAINERID", err: Box::new(EmptyValueError) });
+            }
+
+            let re = Regex::new(r"^[a-z0-9][a-z0-9_.\-]*$").unwrap();
+            if !re.is_match(&container_id) {
+                return Err(CniError::InvalidEnv { var: "CNI_CONTAINERID", err: Box::new(RegexValueError(re)) });
+            }
+        }
+
         Ok(Self {
             command: load_env("CNI_COMMAND")?,
-            container_id: load_env("CNI_CONTAINERID")?,
+            container_id,
             netns: load_env("CNI_NETNS")?,
             ifname: load_env("CNI_IFNAME")?,
             args: args.0,
