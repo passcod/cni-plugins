@@ -173,14 +173,34 @@ where
 }
 
 #[derive(Clone, Debug)]
-struct Cni {
-    pub command: Command,
-    pub container_id: Option<String>,
-    pub netns: Option<PathBuf>,
-    pub ifname: Option<String>,
-    pub args: HashMap<String, String>,
-    pub path: Vec<PathBuf>,
-    pub config: NetworkConfig,
+enum Cni {
+    Add {
+        container_id: String,
+        ifname: String,
+        netns: PathBuf,
+        args: HashMap<String, String>,
+        path: Vec<PathBuf>,
+        config: NetworkConfig,
+    },
+    Del {
+        container_id: String,
+        ifname: String,
+        netns: Option<PathBuf>,
+        args: HashMap<String, String>,
+        path: Vec<PathBuf>,
+        config: NetworkConfig,
+    },
+    Check {
+        container_id: String,
+        ifname: String,
+        netns: PathBuf,
+        args: HashMap<String, String>,
+        path: Vec<PathBuf>,
+        config: NetworkConfig,
+    },
+    Version {
+        config: NetworkConfig,
+    },
 }
 
 impl Cni {
@@ -215,6 +235,8 @@ impl Cni {
 
         let args: CniArgs = load_env("CNI_ARGS")?.unwrap_or_default();
         let path: CniPath = load_env("CNI_PATH")?.unwrap_or_default();
+        let args = args.0;
+        let path = path.0;
 
         let mut netcon_bytes = Vec::with_capacity(1024);
         stdin().read_to_end(&mut netcon_bytes)?;
@@ -230,8 +252,9 @@ impl Cni {
             return Err(CniError::Incompatible(config.cni_version));
         }
 
-        let container_id: Option<String> = load_env("CNI_CONTAINERID")?;
-        if let Some(ref id) = container_id {
+        // let container_id: Option<String> = load_env("CNI_CONTAINERID")?;
+
+        fn check_container_id(id: &str) -> Result<(), CniError> {
             if id.is_empty() {
                 return Err(CniError::InvalidEnv {
                     var: "CNI_CONTAINERID",
@@ -240,23 +263,62 @@ impl Cni {
             }
 
             let re = Regex::new(r"^[a-z0-9][a-z0-9_.\-]*$").unwrap();
-            if !re.is_match(&id) {
+            if !re.is_match(id) {
                 return Err(CniError::InvalidEnv {
                     var: "CNI_CONTAINERID",
                     err: Box::new(RegexValueError(re)),
                 });
             }
+
+            Ok(())
         }
 
-        Ok(Self {
-            command: require_env("CNI_COMMAND")?,
-            container_id,
-            netns: load_env("CNI_NETNS")?,
-            ifname: load_env("CNI_IFNAME")?,
-            args: args.0,
-            path: path.0,
-            config,
-        })
+        match require_env("CNI_COMMAND")? {
+            Command::Add => {
+                let container_id: String = require_env("CNI_CONTAINERID")?;
+                check_container_id(&container_id)?;
+
+                Ok(Self::Add {
+                    container_id,
+                    ifname: require_env("CNI_IFNAME")?,
+                    netns: require_env("CNI_NETNS")?,
+                    args,
+                    path,
+                    config,
+                })
+            }
+            Command::Del => {
+                let container_id: String = require_env("CNI_CONTAINERID")?;
+                check_container_id(&container_id)?;
+
+                Ok(Self::Del {
+                    container_id,
+                    ifname: require_env("CNI_IFNAME")?,
+                    netns: load_env("CNI_NETNS")?,
+                    args,
+                    path,
+                    config,
+                })
+            }
+            Command::Check => {
+                let container_id: String = require_env("CNI_CONTAINERID")?;
+                check_container_id(&container_id)?;
+
+                Ok(Self::Check {
+                    container_id,
+                    ifname: require_env("CNI_IFNAME")?,
+                    netns: require_env("CNI_NETNS")?,
+                    args,
+                    path,
+                    config,
+                })
+            }
+            Command::Version => {
+                Ok(Self::Version {
+                    config,
+                })
+            }
+        }
     }
 
     pub fn load() -> Self {
