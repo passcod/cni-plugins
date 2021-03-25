@@ -198,9 +198,7 @@ enum Cni {
         path: Vec<PathBuf>,
         config: NetworkConfig,
     },
-    Version {
-        config: NetworkConfig,
-    },
+    Version(Version),
 }
 
 impl Cni {
@@ -314,9 +312,7 @@ impl Cni {
                 })
             }
             Command::Version => {
-                Ok(Self::Version {
-                    config,
-                })
+                Ok(Self::Version(config.cni_version))
             }
         }
     }
