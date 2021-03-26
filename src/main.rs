@@ -236,21 +236,22 @@ impl Cni {
         let args = args.0;
         let path = path.0;
 
-        let mut netcon_bytes = Vec::with_capacity(1024);
-        stdin().read_to_end(&mut netcon_bytes)?;
-        if netcon_bytes.is_empty() {
+        let mut payload = Vec::with_capacity(1024);
+        stdin().read_to_end(&mut payload)?;
+        if payload.is_empty() {
             return Err(CniError::MissingInput);
         }
 
-        let config: NetworkConfig = serde_json::from_slice(&netcon_bytes)?;
-        if !VersionReq::parse(COMPATIBLE_VERSIONS)
-            .unwrap()
-            .matches(&config.cni_version)
-        {
-            return Err(CniError::Incompatible(config.cni_version));
+        fn check_version(version: &Version) -> Result<(), CniError> {
+            if !VersionReq::parse(COMPATIBLE_VERSIONS)
+                .unwrap()
+                .matches(version)
+            {
+                Err(CniError::Incompatible(version.clone()))
+            } else {
+                Ok(())
+            }
         }
-
-        // let container_id: Option<String> = load_env("CNI_CONTAINERID")?;
 
         fn check_container_id(id: &str) -> Result<(), CniError> {
             if id.is_empty() {
@@ -276,6 +277,9 @@ impl Cni {
                 let container_id: String = require_env("CNI_CONTAINERID")?;
                 check_container_id(&container_id)?;
 
+                let config: NetworkConfig = serde_json::from_slice(&payload)?;
+                check_version(&config.cni_version)?;
+
                 Ok(Self::Add {
                     container_id,
                     ifname: require_env("CNI_IFNAME")?,
@@ -288,6 +292,9 @@ impl Cni {
             Command::Del => {
                 let container_id: String = require_env("CNI_CONTAINERID")?;
                 check_container_id(&container_id)?;
+
+                let config: NetworkConfig = serde_json::from_slice(&payload)?;
+                check_version(&config.cni_version)?;
 
                 Ok(Self::Del {
                     container_id,
@@ -302,6 +309,9 @@ impl Cni {
                 let container_id: String = require_env("CNI_CONTAINERID")?;
                 check_container_id(&container_id)?;
 
+                let config: NetworkConfig = serde_json::from_slice(&payload)?;
+                check_version(&config.cni_version)?;
+
                 Ok(Self::Check {
                     container_id,
                     ifname: require_env("CNI_IFNAME")?,
@@ -312,6 +322,16 @@ impl Cni {
                 })
             }
             Command::Version => {
+                #[derive(Clone, Deserialize)]
+                #[serde(rename_all = "camelCase")]
+                struct VersionPayload {
+                    #[serde(deserialize_with = "deserialize_version")]
+                    pub cni_version: Version,
+                }
+
+                let config: VersionPayload = serde_json::from_slice(&payload)?;
+                check_version(&config.cni_version)?;
+
                 Ok(Self::Version(config.cni_version))
             }
         }
