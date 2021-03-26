@@ -1,20 +1,14 @@
-use std::{
-    collections::HashMap,
-    convert::Infallible,
-    env::{self, split_paths, VarError},
-    io::{stdin, Read},
-    path::PathBuf,
-    process::exit,
-    str::FromStr,
-};
+use std::{collections::HashMap, convert::Infallible, env::{self, split_paths, VarError}, io::{Read, stdin, stdout}, path::PathBuf, process::exit, str::FromStr};
 
 use regex::Regex;
 use semver::{Version, VersionReq};
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 use thiserror::Error;
 
+// todo figure out something with these two
 const COMPATIBLE_VERSIONS: &str = "=0.4.0||^1.0.0";
+const SUPPORTED_VERSIONS: &[&str] = &["0.4.0", "1.0.0"];
 
 #[derive(Debug, Error)]
 enum CniError {
@@ -163,7 +157,25 @@ struct DnsConfig {
     pub options: Vec<String>,
 }
 
-pub fn deserialize_version<'de, D>(deserializer: D) -> Result<Version, D::Error>
+#[derive(Clone, Debug, Serialize)]
+struct VersionResult {
+    #[serde(serialize_with = "serialize_version")]
+    cni_version: Version,
+    supported_versions: &'static [&'static str],
+}
+
+#[derive(Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct VersionPayload {
+    #[serde(deserialize_with = "deserialize_version")]
+    pub cni_version: Version,
+}
+
+fn serialize_version<S>(version: &Version, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+    version.to_string().serialize(serializer)
+}
+
+fn deserialize_version<'de, D>(deserializer: D) -> Result<Version, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -242,17 +254,6 @@ impl Cni {
             return Err(CniError::MissingInput);
         }
 
-        fn check_version(version: &Version) -> Result<(), CniError> {
-            if !VersionReq::parse(COMPATIBLE_VERSIONS)
-                .unwrap()
-                .matches(version)
-            {
-                Err(CniError::Incompatible(version.clone()))
-            } else {
-                Ok(())
-            }
-        }
-
         fn check_container_id(id: &str) -> Result<(), CniError> {
             if id.is_empty() {
                 return Err(CniError::InvalidEnv {
@@ -278,7 +279,7 @@ impl Cni {
                 check_container_id(&container_id)?;
 
                 let config: NetworkConfig = serde_json::from_slice(&payload)?;
-                check_version(&config.cni_version)?;
+                Self::check_version(&config.cni_version)?;
 
                 Ok(Self::Add {
                     container_id,
@@ -294,7 +295,7 @@ impl Cni {
                 check_container_id(&container_id)?;
 
                 let config: NetworkConfig = serde_json::from_slice(&payload)?;
-                check_version(&config.cni_version)?;
+                Self::check_version(&config.cni_version)?;
 
                 Ok(Self::Del {
                     container_id,
@@ -310,7 +311,7 @@ impl Cni {
                 check_container_id(&container_id)?;
 
                 let config: NetworkConfig = serde_json::from_slice(&payload)?;
-                check_version(&config.cni_version)?;
+                Self::check_version(&config.cni_version)?;
 
                 Ok(Self::Check {
                     container_id,
@@ -322,16 +323,7 @@ impl Cni {
                 })
             }
             Command::Version => {
-                #[derive(Clone, Deserialize)]
-                #[serde(rename_all = "camelCase")]
-                struct VersionPayload {
-                    #[serde(deserialize_with = "deserialize_version")]
-                    pub cni_version: Version,
-                }
-
                 let config: VersionPayload = serde_json::from_slice(&payload)?;
-                check_version(&config.cni_version)?;
-
                 Ok(Self::Version(config.cni_version))
             }
         }
@@ -339,7 +331,6 @@ impl Cni {
 
     pub fn load() -> Self {
         match Self::from_env() {
-            Ok(c) => c,
             Err(CniError::Io(e)) => {
                 eprintln!("{}", e);
                 exit(5);
@@ -364,6 +355,30 @@ impl Cni {
                 eprintln!("{}", e);
                 exit(4);
             }
+            Ok(Cni::Version(v)) => {
+                serde_json::to_writer(stdout(), &VersionResult {
+                    cni_version: v.clone(),
+                    supported_versions: SUPPORTED_VERSIONS,
+                }).unwrap();
+
+                exit(if Self::check_version(&v).is_err() {
+                    1
+                } else {
+                    0
+                });
+            }
+            Ok(c) => c,
+        }
+    }
+
+    fn check_version(version: &Version) -> Result<(), CniError> {
+        if !VersionReq::parse(COMPATIBLE_VERSIONS)
+            .unwrap()
+            .matches(version)
+        {
+            Err(CniError::Incompatible(version.clone()))
+        } else {
+            Ok(())
         }
     }
 }
