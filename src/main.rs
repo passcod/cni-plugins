@@ -1,4 +1,12 @@
-use std::{collections::{HashMap, HashSet}, convert::Infallible, env::{self, split_paths, VarError}, io::{stdin, stdout, Read}, path::PathBuf, process::exit, str::FromStr};
+use std::{
+    collections::{HashMap, HashSet},
+    convert::Infallible,
+    env::{self, split_paths, VarError},
+    io::{stdin, stdout, Read},
+    path::PathBuf,
+    process::exit,
+    str::FromStr,
+};
 
 use regex::Regex;
 use semver::{Version, VersionReq};
@@ -168,9 +176,9 @@ struct VersionPayload {
 #[serde(rename_all = "camelCase")]
 struct VersionResult {
     #[serde(serialize_with = "serialize_version")]
-    cni_version: Version,
+    pub cni_version: Version,
     #[serde(serialize_with = "serialize_version_list")]
-    supported_versions: Vec<Version>,
+    pub supported_versions: Vec<Version>,
 }
 
 fn serialize_version<S>(version: &Version, serializer: S) -> Result<S::Ok, S::Error>
@@ -203,14 +211,61 @@ where
 #[serde(rename_all = "camelCase")]
 struct ErrorResult {
     #[serde(serialize_with = "serialize_version")]
-    cni_version: Version,
-    code: u8,
-    msg: &'static str,
-    details: String,
+    pub cni_version: Version,
+    pub code: u8,
+    pub msg: &'static str,
+    pub details: String,
 }
 
-fn reply<T>(result: &T) where T: Serialize {
-    serde_json::to_writer(stdout(), result).expect("Error writing result to stdout... chances are you won't get this either");
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SuccessResult {
+    #[serde(serialize_with = "serialize_version")]
+    pub cni_version: Version,
+    pub interfaces: Vec<InterfaceResult>,
+    pub ips: Vec<IpResult>,
+    pub routes: Vec<RouteResult>,
+    pub dns: DnsResult,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct InterfaceResult {
+    pub name: String,
+    pub mac: String, // MacAddr
+    pub sandbox: PathBuf,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct IpResult {
+    pub address: String,         // IpNetwork
+    pub gateway: Option<String>, // IpAddr
+    pub interface: usize,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RouteResult {
+    pub dst: String,        // IpNetwork
+    pub gw: Option<String>, // IpAddr
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DnsResult {
+    pub nameservers: Vec<String>, // Vec<IpAddr>
+    pub domain: Option<String>,
+    pub search: Vec<String>,
+    pub options: Vec<String>,
+}
+
+pub fn reply<T>(result: &T)
+where
+    T: Serialize,
+{
+    serde_json::to_writer(stdout(), result)
+        .expect("Error writing result to stdout... chances are you won't get this either");
 }
 
 #[derive(Clone, Debug)]
@@ -418,10 +473,10 @@ impl Cni {
             }
             Ok(Cni::Version(v)) => {
                 let mut supported_versions = SUPPORTED_VERSIONS
-                                .iter()
-                                .map(|v| Version::parse(*v))
-                                .collect::<Result<HashSet<_>, _>>()
-                                .unwrap();
+                    .iter()
+                    .map(|v| Version::parse(*v))
+                    .collect::<Result<HashSet<_>, _>>()
+                    .unwrap();
 
                 let supported = Self::check_version(&v).is_ok();
                 if supported {
