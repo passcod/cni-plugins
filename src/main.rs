@@ -1,4 +1,4 @@
-use std::{collections::HashMap, convert::Infallible, env::{self, split_paths, VarError}, io::{Read, stdin, stdout}, path::PathBuf, process::exit, str::FromStr};
+use std::{collections::{HashMap, HashSet}, convert::Infallible, env::{self, split_paths, VarError}, io::{stdin, stdout, Read}, path::PathBuf, process::exit, str::FromStr};
 
 use regex::Regex;
 use semver::{Version, VersionReq};
@@ -161,7 +161,8 @@ struct DnsConfig {
 struct VersionResult {
     #[serde(serialize_with = "serialize_version")]
     cni_version: Version,
-    supported_versions: &'static [&'static str],
+    #[serde(serialize_with = "serialize_version_list")]
+    supported_versions: Vec<Version>,
 }
 
 #[derive(Clone, Deserialize)]
@@ -171,8 +172,21 @@ struct VersionPayload {
     pub cni_version: Version,
 }
 
-fn serialize_version<S>(version: &Version, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+fn serialize_version<S>(version: &Version, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
     version.to_string().serialize(serializer)
+}
+
+fn serialize_version_list<S>(list: &Vec<Version>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    list.iter()
+        .map(Version::to_string)
+        .collect::<Vec<String>>()
+        .serialize(serializer)
 }
 
 fn deserialize_version<'de, D>(deserializer: D) -> Result<Version, D::Error>
@@ -356,16 +370,27 @@ impl Cni {
                 exit(4);
             }
             Ok(Cni::Version(v)) => {
-                serde_json::to_writer(stdout(), &VersionResult {
-                    cni_version: v.clone(),
-                    supported_versions: SUPPORTED_VERSIONS,
-                }).unwrap();
+                let mut supported_versions = SUPPORTED_VERSIONS
+                                .iter()
+                                .map(|v| Version::parse(*v))
+                                .collect::<Result<HashSet<_>, _>>()
+                                .unwrap();
 
-                exit(if Self::check_version(&v).is_err() {
-                    1
-                } else {
-                    0
-                });
+                let supported = Self::check_version(&v).is_ok();
+                if supported {
+                    supported_versions.insert(v.clone());
+                }
+
+                serde_json::to_writer(
+                    stdout(),
+                    &VersionResult {
+                        cni_version: v.clone(),
+                        supported_versions: supported_versions.into_iter().collect(),
+                    },
+                )
+                .unwrap();
+
+                exit(if supported { 0 } else { 1 });
             }
             Ok(c) => c,
         }
