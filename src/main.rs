@@ -157,19 +157,20 @@ struct DnsConfig {
     pub options: Vec<String>,
 }
 
-#[derive(Clone, Debug, Serialize)]
-struct VersionResult {
-    #[serde(serialize_with = "serialize_version")]
-    cni_version: Version,
-    #[serde(serialize_with = "serialize_version_list")]
-    supported_versions: Vec<Version>,
-}
-
 #[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct VersionPayload {
     #[serde(deserialize_with = "deserialize_version")]
     pub cni_version: Version,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct VersionResult {
+    #[serde(serialize_with = "serialize_version")]
+    cni_version: Version,
+    #[serde(serialize_with = "serialize_version_list")]
+    supported_versions: Vec<Version>,
 }
 
 fn serialize_version<S>(version: &Version, serializer: S) -> Result<S::Ok, S::Error>
@@ -196,6 +197,20 @@ where
     use serde::de::Error;
     let j = String::deserialize(deserializer)?;
     Version::from_str(&j).map_err(Error::custom)
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ErrorResult {
+    #[serde(serialize_with = "serialize_version")]
+    cni_version: Version,
+    code: u8,
+    msg: &'static str,
+    details: String,
+}
+
+fn reply<T>(result: &T) where T: Serialize {
+    serde_json::to_writer(stdout(), result).expect("Error writing result to stdout... chances are you won't get this either");
 }
 
 #[derive(Clone, Debug)]
@@ -344,29 +359,61 @@ impl Cni {
     }
 
     pub fn load() -> Self {
+        let cni_version = Version::parse("1.0.0").unwrap();
+
         match Self::from_env() {
             Err(CniError::Io(e)) => {
-                eprintln!("{}", e);
+                reply(&ErrorResult {
+                    cni_version,
+                    code: 5,
+                    msg: "I/O error",
+                    details: e.to_string(),
+                });
                 exit(5);
             }
             Err(CniError::Json(e)) => {
-                eprintln!("{}", e);
+                reply(&ErrorResult {
+                    cni_version,
+                    code: 6,
+                    msg: "Cannot decode JSON payload",
+                    details: e.to_string(),
+                });
                 exit(6);
             }
             Err(e @ CniError::Incompatible(_)) => {
-                eprintln!("{}", e);
+                reply(&ErrorResult {
+                    cni_version,
+                    code: 1,
+                    msg: "Incompatible CNI version",
+                    details: e.to_string(),
+                });
                 exit(1);
             }
             Err(e @ CniError::MissingInput) => {
-                eprintln!("{}", e);
+                reply(&ErrorResult {
+                    cni_version,
+                    code: 7,
+                    msg: "Missing payload",
+                    details: e.to_string(),
+                });
                 exit(7);
             }
             Err(e @ CniError::MissingEnv { .. }) => {
-                eprintln!("{}", e);
+                reply(&ErrorResult {
+                    cni_version,
+                    code: 4,
+                    msg: "Missing environment variable",
+                    details: e.to_string(),
+                });
                 exit(4);
             }
             Err(e @ CniError::InvalidEnv { .. }) => {
-                eprintln!("{}", e);
+                reply(&ErrorResult {
+                    cni_version,
+                    code: 4,
+                    msg: "Invalid environment variable",
+                    details: e.to_string(),
+                });
                 exit(4);
             }
             Ok(Cni::Version(v)) => {
@@ -381,14 +428,10 @@ impl Cni {
                     supported_versions.insert(v.clone());
                 }
 
-                serde_json::to_writer(
-                    stdout(),
-                    &VersionResult {
-                        cni_version: v.clone(),
-                        supported_versions: supported_versions.into_iter().collect(),
-                    },
-                )
-                .unwrap();
+                reply(&VersionResult {
+                    cni_version: v.clone(),
+                    supported_versions: supported_versions.into_iter().collect(),
+                });
 
                 exit(if supported { 0 } else { 1 });
             }
