@@ -1,7 +1,8 @@
-use std::{collections::HashMap};
+use std::{collections::HashMap, str::FromStr};
 
 use async_std::task::block_on;
 use cni_plugin::{Cni, ErrorResult, IpamSuccessResult, reply};
+use ipnetwork::IpNetwork;
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -51,14 +52,23 @@ fn main() {
 
                 // TODO: check that group is on CNI networking
 
+                // TODO: first check config.runtime.ips
+
                 let ip = group
                     .meta
-                    .map(|meta| meta.get("network-ip").map(|v| v.to_string()))
-                    .flatten();
+                    .map(|meta| meta.get("network-ip").map(|v| IpNetwork::from_str(&v.to_string())))
+                    .flatten()
+                    .transpose()
+                    .map_err(|err| ErrorResult {
+                        cni_version: config.cni_version.clone(),
+                        code: 100,
+                        msg: "failed to parse alloc.group.meta.network-ip",
+                        details: err.to_string(),
+                    });
 
-                // if ip provided check against the ipam.specific.subnet
+                // if ip provided check against the ipam.subnet
 
-                // lookup ipam.specific.subnet as key (with / -> |) in consul kv under ipam/
+                // lookup ipam.subnet as key (with / -> |) in consul kv under ipam/
                 // error if not found
 
                 // if no ip, fetch the list under the consul kv and pick a random one
