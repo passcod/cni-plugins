@@ -1,0 +1,13 @@
+[package]
+name = "cni-ipam-consul"
+version = "0.1.0"
+authors = ["Félix Saparelli <felix@passcod.name>"]
+edition = "2018"
+
+[dependencies]
+cni-plugin = { path = "../cni-plugin" }
+async-std = "1.9.0"
+ipnetwork = "0.17.0"
+serde = { version = "1.0.123", features = ["derive"] }
+serde_json = "1.0.62"
+surf = "2.2.0"

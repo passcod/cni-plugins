@@ -289,13 +289,23 @@ name = "cni-ipam-consul"
 version = "0.1.0"
 dependencies = [
  "async-std",
+ "cni-plugin",
+ "ipnetwork",
+ "serde",
+ "serde_json",
+ "surf",
+]
+
+[[package]]
+name = "cni-plugin"
+version = "0.1.0"
+dependencies = [
  "ipnetwork",
  "macaddr",
  "regex",
  "semver 0.11.0",
  "serde",
  "serde_json",
- "surf",
  "thiserror",
 ]
 
@@ -310,9 +320,9 @@ dependencies = [
 
 [[package]]
 name = "const_fn"
-version = "0.4.5"
+version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "28b9d6de7f49e22cf97ad17fc4036ece69300032f45f78f30b4a4482cdc3f4a6"
+checksum = "076a6803b0dacd6a88cfe64deba628b01533ff5ef265687e6938280c1afd0a28"
 
 [[package]]
 name = "cookie"
@@ -1419,9 +1429,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "1.0.64"
+version = "1.0.65"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3fd9d1e9976102a03c542daa2eff1b43f9d72306342f3f8b3ed5fb8908195d6f"
+checksum = "f3a1d708c221c5a612956ef9f75b37e454e88d1f7b899fbd3a18d4252012d663"
 dependencies = [
  "proc-macro2",
  "quote",

@@ -1,11 +1,9 @@
 use std::{collections::HashMap};
 
 use async_std::task::block_on;
-use cni::Cni;
+use cni_plugin::{Cni, ErrorResult, IpamSuccessResult, reply};
 use serde::Deserialize;
 use serde_json::Value;
-
-mod cni;
 
 // TODO: pull config from somewhere...
 
@@ -24,7 +22,7 @@ fn main() {
 
             let ipam = match config.ipam.clone() {
                 Some(i) => i,
-                None => cni::reply(cni::ErrorResult {
+                None => reply(ErrorResult {
                     cni_version: config.cni_version.clone(),
                     code: 7,
                     msg: "missing field",
@@ -32,19 +30,19 @@ fn main() {
                 }),
             };
 
-            let res: Result<cni::IpamSuccessResult, cni::ErrorResult> = block_on(async move {
+            let res: Result<IpamSuccessResult, ErrorResult> = block_on(async move {
                 let alloc: Alloc =
                     surf::get(format!("http://coco.nut:4646/v1/allocation/{}", alloc_id))
                         .recv_json()
                         .await
-                        .map_err(|err| cni::ErrorResult {
+                        .map_err(|err| ErrorResult {
                             cni_version: config.cni_version.clone(),
                             code: 100,
                             msg: "whoops",
                             details: format!("{:?}", err),
                         })?;
 
-                let group = alloc.job.task_groups.iter().find(|g| g.name == alloc.task_group).ok_or(cni::ErrorResult {
+                let group = alloc.job.task_groups.iter().find(|g| g.name == alloc.task_group).ok_or(ErrorResult {
                     cni_version: config.cni_version.clone(),
                     code: 100,
                     msg: "missing group in alloc",
@@ -71,7 +69,7 @@ fn main() {
 
                 // return ipam result
 
-                Err(cni::ErrorResult {
+                Err(ErrorResult {
                     cni_version: config.cni_version.clone(),
                     code: 100,
                     msg: "dbg",
@@ -80,8 +78,8 @@ fn main() {
             });
 
             match res {
-                Err(res) => cni::reply(res),
-                Ok(res) => cni::reply(res),
+                Err(res) => reply(res),
+                Ok(res) => reply(res),
             }
         }
         Cni::Del {

@@ -1,0 +1,16 @@
+[package]
+name = "cni-plugin"
+version = "0.1.0"
+authors = ["Félix Saparelli <felix@passcod.name>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ipnetwork = "0.17.0"
+macaddr = { version = "1.0.1", features = ["serde_std"] }
+regex = "1.4.5"
+semver = "0.11.0"
+serde = { version = "1.0.123", features = ["derive"] }
+serde_json = "1.0.62"
+thiserror = "1.0.23"

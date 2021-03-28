@@ -1,16 +1,5 @@
-[package]
-name = "cni-ipam-consul"
-version = "0.1.0"
-authors = ["Félix Saparelli <felix@passcod.name>"]
-edition = "2018"
-
-[dependencies]
-async-std = "1.9.0"
-ipnetwork = "0.17.0"
-macaddr = { version = "1.0.1", features = ["serde_std"] }
-regex = "1.4.5"
-semver = "0.11.0"
-serde = { version = "1.0.123", features = ["derive"] }
-serde_json = "1.0.62"
-surf = "2.2.0"
-thiserror = "1.0.23"
+[workspace]
+members = [
+  "cni-plugin",
+  "cni-ipam-consul",
+]
