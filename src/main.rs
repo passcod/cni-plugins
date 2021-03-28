@@ -1,4 +1,4 @@
-use std::{collections::HashMap, process::exit};
+use std::{collections::HashMap};
 
 use async_std::task::block_on;
 use cni::Cni;
@@ -13,11 +13,8 @@ fn main() {
     match Cni::load() {
         Cni::Add {
             container_id,
-            ifname,
-            netns,
-            args,
-            path,
             config,
+            ..
         } => {
             let alloc_id = if container_id.starts_with("cnitool-") {
                 "b0695b87-4077-b4c7-fb94-b9414d070341".into() // testing
@@ -89,19 +86,13 @@ fn main() {
         }
         Cni::Del {
             container_id,
-            ifname,
-            netns,
-            args,
-            path,
             config,
+            ..
         } => {}
         Cni::Check {
             container_id,
-            ifname,
-            netns,
-            args,
-            path,
             config,
+            ..
         } => {}
         Cni::Version(_) => unreachable!(),
     }
