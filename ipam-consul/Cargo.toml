@@ -5,7 +5,7 @@ authors = ["Félix Saparelli <felix@passcod.name>"]
 edition = "2018"
 
 [dependencies]
-cni-plugin = { path = "../cni-plugin" }
+cni-plugin = { path = "../plugin" }
 async-std = "1.9.0"
 ipnetwork = "0.17.0"
 serde = { version = "1.0.123", features = ["derive"] }

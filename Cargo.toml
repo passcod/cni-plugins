@@ -1,5 +1,5 @@
 [workspace]
 members = [
-  "cni-plugin",
-  "cni-ipam-consul",
+  "plugin",
+  "ipam-consul",
 ]
