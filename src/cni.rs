@@ -3,11 +3,14 @@ use std::{
     convert::Infallible,
     env::{self, split_paths, VarError},
     io::{stdin, stdout, Read},
+    net::IpAddr,
     path::PathBuf,
     process::exit,
     str::FromStr,
 };
 
+use ipnetwork::IpNetwork;
+use macaddr::MacAddr6;
 use regex::Regex;
 use semver::{Version, VersionReq};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -259,16 +262,16 @@ impl ResultPayload for IpamSuccessResult {}
 #[serde(rename_all = "camelCase")]
 pub struct InterfaceResult {
     pub name: String,
-    pub mac: String, // MacAddr
+    pub mac: MacAddr6,
     pub sandbox: PathBuf,
 }
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IpResult {
-    pub address: String, // IpNetwork
+    pub address: IpNetwork,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub gateway: Option<String>, // IpAddr
+    pub gateway: Option<IpAddr>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub interface: Option<usize>, // None for ipam
 }
@@ -276,15 +279,15 @@ pub struct IpResult {
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RouteResult {
-    pub dst: String, // IpNetwork
+    pub dst: IpNetwork,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub gw: Option<String>, // IpAddr
+    pub gw: Option<IpAddr>,
 }
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DnsResult {
-    pub nameservers: Vec<String>, // Vec<IpAddr>
+    pub nameservers: Vec<IpAddr>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub domain: Option<String>,
     pub search: Vec<String>,

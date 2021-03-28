@@ -289,6 +289,8 @@ name = "cni-ipam-consul"
 version = "0.1.0"
 dependencies = [
  "async-std",
+ "ipnetwork",
+ "macaddr",
  "regex",
  "semver 0.11.0",
  "serde",
@@ -731,6 +733,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ipnetwork"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "02c3eaab3ac0ede60ffa41add21970a7df7d91772c03383aac6c2c3d53cc716b"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "isahc"
 version = "0.9.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -828,6 +839,15 @@ checksum = "51b9bbe6c47d51fc3e1a9b945965946b4c44142ab8792c50835a980d362c2710"
 dependencies = [
  "cfg-if",
  "value-bag",
+]
+
+[[package]]
+name = "macaddr"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "baee0bbc17ce759db233beb01648088061bf678383130602a298e6998eedb2d8"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

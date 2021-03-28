@@ -6,6 +6,8 @@ edition = "2018"
 
 [dependencies]
 async-std = "1.9.0"
+ipnetwork = "0.17.0"
+macaddr = { version = "1.0.1", features = ["serde_std"] }
 regex = "1.4.5"
 semver = "0.11.0"
 serde = { version = "1.0.123", features = ["derive"] }
