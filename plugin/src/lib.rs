@@ -153,8 +153,24 @@ pub struct IpamConfig {
     #[serde(rename = "type")]
     pub plugin: String,
 
+    // doc: common keys, but not in standard
+    #[serde(default)]
+    pub subnet: Option<IpNetwork>,
+    #[serde(default)]
+    pub gateway: Option<IpAddr>,
+    #[serde(default)]
+    pub routes: Vec<Route>,
+
     #[serde(flatten)]
     pub specific: HashMap<String, Value>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Route {
+    pub dst: IpNetwork,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gw: Option<IpAddr>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -318,7 +334,7 @@ pub struct AddSuccessResult {
     pub cni_version: Version,
     pub interfaces: Vec<InterfaceResult>,
     pub ips: Vec<IpResult>,
-    pub routes: Vec<RouteResult>,
+    pub routes: Vec<Route>,
     pub dns: DnsResult,
 }
 
@@ -330,7 +346,7 @@ pub struct IpamSuccessResult {
     #[serde(serialize_with = "serialize_version")]
     pub cni_version: Version,
     pub ips: Vec<IpResult>,
-    pub routes: Vec<RouteResult>,
+    pub routes: Vec<Route>,
     pub dns: DnsResult,
 }
 
@@ -352,14 +368,6 @@ pub struct IpResult {
     pub gateway: Option<IpAddr>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub interface: Option<usize>, // None for ipam
-}
-
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RouteResult {
-    pub dst: IpNetwork,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub gw: Option<IpAddr>,
 }
 
 #[derive(Clone, Debug, Serialize)]
