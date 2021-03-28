@@ -138,6 +138,9 @@ pub struct NetworkConfig {
     pub dns: Option<DnsConfig>,
 
     #[serde(default)]
+    pub runtime_config: Vec<RuntimeConfig>,
+
+    #[serde(default)]
     pub prev_result: Option<Value>,
 
     #[serde(flatten)]
@@ -165,6 +168,81 @@ pub struct DnsConfig {
     pub search: Vec<String>,
     #[serde(default)]
     pub options: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeConfig {
+    #[serde(default)]
+    pub port_mappings: Vec<PortMapping>,
+    #[serde(default)]
+    pub ip_ranges: Option<IpRanges>,
+    #[serde(default)]
+    pub bandwidth: Option<BandwidthLimits>,
+    #[serde(default)]
+    pub dns: Option<DnsConfig>,
+    #[serde(default)]
+    pub ips: Vec<IpNetwork>,
+    #[serde(default)]
+    pub mac: Option<MacAddr6>,
+    #[serde(default)]
+    pub aliases: Vec<String>,
+
+    // TODO: infinibandGUID (behind feature)
+    // TODO: (PCI) deviceID (behind feature)
+
+    // TODO: in doc, note that entries in specific may get hoisted to fields in future (breaking) versions
+    #[serde(flatten)]
+    pub specific: HashMap<String, Value>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PortMapping {
+    pub host_port: u16,
+    pub container_port: u16,
+    #[serde(default)]
+    pub protocol: Option<PortProtocol>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PortProtocol {
+    Tcp,
+    Udp,
+}
+
+// FIXME: needs to deserialize from [outer, inner]
+#[derive(Clone, Debug, Deserialize)]
+pub struct IpRanges {
+    pub outer: Vec<IpRange>,
+    pub inner: Vec<IpRange>,
+}
+
+// TODO: enforce all addresses being of the same type
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IpRange {
+    pub subnet: IpNetwork,
+    #[serde(default)]
+    pub range_start: Option<IpAddr>,
+    #[serde(default)]
+    pub range_end: Option<IpAddr>,
+    #[serde(default)]
+    pub gateway: Option<IpAddr>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BandwidthLimits {
+    #[serde(default)]
+    pub ingress_rate: Option<usize>, // bits per second
+    #[serde(default)]
+    pub ingress_burst: Option<usize>, // bits
+    #[serde(default)]
+    pub egress_rate: Option<usize>, // bits per second
+    #[serde(default)]
+    pub egress_burst: Option<usize>, // bits
 }
 
 #[derive(Clone, Deserialize)]
