@@ -7,7 +7,7 @@ use serde_json::Value;
 
 mod cni;
 
-// TODO: rename cni-ipam-nomad
+// TODO: pull config from somewhere...
 
 fn main() {
     match Cni::load() {
