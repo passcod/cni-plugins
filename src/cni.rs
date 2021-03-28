@@ -388,7 +388,6 @@ pub enum Cni {
         container_id: String,
         ifname: String,
         netns: PathBuf,
-        args: HashMap<String, String>,
         path: Vec<PathBuf>,
         config: NetworkConfig,
     },
@@ -396,7 +395,6 @@ pub enum Cni {
         container_id: String,
         ifname: String,
         netns: Option<PathBuf>,
-        args: HashMap<String, String>,
         path: Vec<PathBuf>,
         config: NetworkConfig,
     },
@@ -404,7 +402,6 @@ pub enum Cni {
         container_id: String,
         ifname: String,
         netns: PathBuf,
-        args: HashMap<String, String>,
         path: Vec<PathBuf>,
         config: NetworkConfig,
     },
@@ -412,6 +409,8 @@ pub enum Cni {
 }
 
 impl Cni {
+    // TODO: in doc: CNI_ARGS is deprecated in the spec, and we deliberately
+    // chose to ignore it here.
     pub fn from_env() -> Result<Self, CniError> {
         fn require_env<T>(var: &'static str) -> Result<T, CniError>
         where
@@ -441,9 +440,7 @@ impl Cni {
             })
         }
 
-        let args: CniArgs = load_env("CNI_ARGS")?.unwrap_or_default();
         let path: CniPath = load_env("CNI_PATH")?.unwrap_or_default();
-        let args = args.0;
         let path = path.0;
 
         let mut payload = Vec::with_capacity(1024);
@@ -483,7 +480,6 @@ impl Cni {
                     container_id,
                     ifname: require_env("CNI_IFNAME")?,
                     netns: require_env("CNI_NETNS")?,
-                    args,
                     path,
                     config,
                 })
@@ -499,7 +495,6 @@ impl Cni {
                     container_id,
                     ifname: require_env("CNI_IFNAME")?,
                     netns: load_env("CNI_NETNS")?,
-                    args,
                     path,
                     config,
                 })
@@ -515,7 +510,6 @@ impl Cni {
                     container_id,
                     ifname: require_env("CNI_IFNAME")?,
                     netns: require_env("CNI_NETNS")?,
-                    args,
                     path,
                     config,
                 })
