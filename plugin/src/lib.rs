@@ -192,7 +192,7 @@ pub struct RuntimeConfig {
     #[serde(default)]
     pub port_mappings: Vec<PortMapping>,
     #[serde(default)]
-    pub ip_ranges: Option<IpRanges>,
+    pub ips_ranges: Vec<Vec<IpRange>>,
     #[serde(default)]
     pub bandwidth: Option<BandwidthLimits>,
     #[serde(default)]
@@ -226,13 +226,6 @@ pub struct PortMapping {
 pub enum PortProtocol {
     Tcp,
     Udp,
-}
-
-// FIXME: needs to deserialize from [outer, inner]
-#[derive(Clone, Debug, Deserialize)]
-pub struct IpRanges {
-    pub outer: Vec<IpRange>,
-    pub inner: Vec<IpRange>,
 }
 
 // TODO: enforce all addresses being of the same type
