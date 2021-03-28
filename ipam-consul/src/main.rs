@@ -1,8 +1,7 @@
-use std::{collections::HashMap, str::FromStr};
+use std::{collections::HashMap, net::IpAddr, str::FromStr};
 
 use async_std::task::block_on;
-use cni_plugin::{Cni, ErrorResult, IpamSuccessResult, reply};
-use ipnetwork::IpNetwork;
+use cni_plugin::{reply, Cni, ErrorResult, IpamSuccessResult};
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -50,23 +49,72 @@ fn main() {
                     details: format!("alloc {} is for task group {} but its own job definition is missing it", alloc_id, alloc.task_group),
                 })?.clone();
 
-                // TODO: check that group is on CNI networking
+                // TODO: enable this
+                if false {
+                    if let Some(network_mode) = group.networks.first().map(|n| &n.mode) {
+                        if !network_mode.starts_with("cni/") {
+                            return Err(ErrorResult {
+                                cni_version: config.cni_version.clone(),
+                                code: 100,
+                                msg: "alloc.group.network.mode is not a CNI",
+                                details: format!("expected: cni/<name>, got: {}", network_mode),
+                            });
+                        }
+                    } else {
+                        return Err(ErrorResult {
+                            cni_version: config.cni_version.clone(),
+                            code: 100,
+                            msg: "alloc.group.network is missing",
+                            details: "you can't really have a network without a network".into(),
+                        });
+                    }
+                }
 
-                // TODO: first check config.runtime.ips
+                let mut ip = config
+                    .runtime
+                    .as_ref()
+                    .map(|c| c.ips.first().map(|ip| ip.ip()))
+                    .flatten();
 
-                let ip = group
-                    .meta
-                    .map(|meta| meta.get("network-ip").map(|v| IpNetwork::from_str(&v.to_string())))
-                    .flatten()
-                    .transpose()
-                    .map_err(|err| ErrorResult {
-                        cni_version: config.cni_version.clone(),
-                        code: 100,
-                        msg: "failed to parse alloc.group.meta.network-ip",
-                        details: err.to_string(),
-                    });
+                if ip.is_none() {
+                    ip = group
+                        .meta
+                        .map(|meta| {
+                            meta.get("network-ip").map(|v| {
+                                if let Value::String(s) = v {
+                                    IpAddr::from_str(&s).map_err(|err| ErrorResult {
+                                        cni_version: config.cni_version.clone(),
+                                        code: 100,
+                                        msg: "failed to parse alloc.group.meta.network-ip",
+                                        details: format!("{} (ip={:?})", err, s),
+                                    })
+                                } else {
+                                    Err(ErrorResult {
+                                        cni_version: config.cni_version.clone(),
+                                        code: 100,
+                                        msg: "alloc.group.meta.network-ip is not a string",
+                                        details: format!("it appears to be a: {:?}", v),
+                                    })
+                                }
+                            })
+                        })
+                        .flatten()
+                        .transpose()?;
+                }
 
-                // if ip provided check against the ipam.subnet
+                if let (Some(subnet), Some(ip)) = (ipam.subnet, ip) {
+                    if !subnet.contains(ip) {
+                        return Err(ErrorResult {
+                            cni_version: config.cni_version.clone(),
+                            code: 100,
+                            msg: "network config subnet !! requested ip",
+                            details: format!(
+                                "network's config subnet {} does not contain requested ip {}",
+                                subnet, ip
+                            ),
+                        });
+                    }
+                }
 
                 // lookup ipam.subnet as key (with / -> |) in consul kv under ipam/
                 // error if not found
@@ -83,7 +131,7 @@ fn main() {
                     cni_version: config.cni_version.clone(),
                     code: 100,
                     msg: "dbg",
-                    details: format!("{:?}", ip),
+                    details: format!("{:?} {:?}", ip, group.networks),
                 })
             });
 
@@ -124,4 +172,12 @@ struct Job {
 struct Group {
     pub name: String,
     pub meta: Option<HashMap<String, Value>>,
+    #[serde(default)]
+    pub networks: Vec<Network>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct Network {
+    pub mode: String,
 }

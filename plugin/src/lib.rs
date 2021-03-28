@@ -138,7 +138,7 @@ pub struct NetworkConfig {
     pub dns: Option<DnsConfig>,
 
     #[serde(default, rename = "runtimeConfig")]
-    pub runtime: Vec<RuntimeConfig>,
+    pub runtime: Option<RuntimeConfig>,
 
     #[serde(default)]
     pub prev_result: Option<Value>,

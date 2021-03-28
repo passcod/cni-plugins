@@ -4,6 +4,10 @@ version = "0.1.0"
 authors = ["Félix Saparelli <felix@passcod.name>"]
 edition = "2018"
 
+[[bin]]
+name = "ipam-consul"
+path = "src/main.rs"
+
 [dependencies]
 cni-plugin = { path = "../plugin" }
 async-std = "1.9.0"
