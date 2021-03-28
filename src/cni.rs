@@ -180,6 +180,8 @@ pub struct VersionResult {
     pub supported_versions: Vec<Version>,
 }
 
+impl ResultPayload for VersionResult {}
+
 fn serialize_version<S>(version: &Version, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
@@ -206,14 +208,26 @@ where
     Version::from_str(&j).map_err(Error::custom)
 }
 
+pub trait ResultPayload {
+    fn code(&self) -> i32 {
+        0
+    }
+}
+
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ErrorResult {
     #[serde(serialize_with = "serialize_version")]
     pub cni_version: Version,
-    pub code: u8,
+    pub code: i32,
     pub msg: &'static str,
     pub details: String,
+}
+
+impl ResultPayload for ErrorResult {
+    fn code(&self) -> i32 {
+        self.code
+    }
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -227,6 +241,8 @@ pub struct AddSuccessResult {
     pub dns: DnsResult,
 }
 
+impl ResultPayload for AddSuccessResult {}
+
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IpamSuccessResult {
@@ -236,6 +252,8 @@ pub struct IpamSuccessResult {
     pub routes: Vec<RouteResult>,
     pub dns: DnsResult,
 }
+
+impl ResultPayload for IpamSuccessResult {}
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -248,7 +266,7 @@ pub struct InterfaceResult {
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IpResult {
-    pub address: String,         // IpNetwork
+    pub address: String, // IpNetwork
     #[serde(skip_serializing_if = "Option::is_none")]
     pub gateway: Option<String>, // IpAddr
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -258,7 +276,7 @@ pub struct IpResult {
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RouteResult {
-    pub dst: String,        // IpNetwork
+    pub dst: String, // IpNetwork
     #[serde(skip_serializing_if = "Option::is_none")]
     pub gw: Option<String>, // IpAddr
 }
@@ -273,12 +291,14 @@ pub struct DnsResult {
     pub options: Vec<String>,
 }
 
-pub fn reply<T>(result: &T)
+pub fn reply<T>(result: T) -> !
 where
-    T: Serialize,
+    T: Serialize + ResultPayload,
 {
-    serde_json::to_writer(stdout(), result)
+    serde_json::to_writer(stdout(), &result)
         .expect("Error writing result to stdout... chances are you won't get this either");
+
+    exit(result.code());
 }
 
 #[derive(Clone, Debug)]
@@ -431,58 +451,52 @@ impl Cni {
 
         match Self::from_env() {
             Err(CniError::Io(e)) => {
-                reply(&ErrorResult {
+                reply(ErrorResult {
                     cni_version,
                     code: 5,
                     msg: "I/O error",
                     details: e.to_string(),
                 });
-                exit(5);
             }
             Err(CniError::Json(e)) => {
-                reply(&ErrorResult {
+                reply(ErrorResult {
                     cni_version,
                     code: 6,
                     msg: "Cannot decode JSON payload",
                     details: e.to_string(),
                 });
-                exit(6);
             }
             Err(e @ CniError::Incompatible(_)) => {
-                reply(&ErrorResult {
+                reply(ErrorResult {
                     cni_version,
                     code: 1,
                     msg: "Incompatible CNI version",
                     details: e.to_string(),
                 });
-                exit(1);
             }
             Err(e @ CniError::MissingInput) => {
-                reply(&ErrorResult {
+                reply(ErrorResult {
                     cni_version,
                     code: 7,
                     msg: "Missing payload",
                     details: e.to_string(),
                 });
-                exit(7);
             }
             Err(e @ CniError::MissingEnv { .. }) => {
-                reply(&ErrorResult {
+                reply(ErrorResult {
                     cni_version,
                     code: 4,
                     msg: "Missing environment variable",
                     details: e.to_string(),
                 });
-                exit(4);
             }
             Err(e @ CniError::InvalidEnv { .. }) => {
-                reply(&ErrorResult {
+                reply(ErrorResult {
                     cni_version,
                     code: 4,
                     msg: "Invalid environment variable",
                     details: e.to_string(),
                 });
-                exit(4);
             }
             Ok(Cni::Version(v)) => {
                 let mut supported_versions = SUPPORTED_VERSIONS
@@ -496,12 +510,10 @@ impl Cni {
                     supported_versions.insert(v.clone());
                 }
 
-                reply(&VersionResult {
+                reply(VersionResult {
                     cni_version: v.clone(),
                     supported_versions: supported_versions.into_iter().collect(),
                 });
-
-                exit(if supported { 0 } else { 1 });
             }
             Ok(c) => c,
         }
