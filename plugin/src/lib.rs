@@ -49,6 +49,62 @@ pub enum CniError {
     },
 }
 
+impl CniError {
+    // doc: result as in ErrorResult, not std's Result
+    pub fn into_result(self, cni_version: Version) -> ErrorResult {
+        match self {
+            Self::Io(e) => {
+                ErrorResult {
+                    cni_version,
+                    code: 5,
+                    msg: "I/O error",
+                    details: e.to_string(),
+                }
+            }
+            Self::Json(e) => {
+                ErrorResult {
+                    cni_version,
+                    code: 6,
+                    msg: "Cannot decode JSON payload",
+                    details: e.to_string(),
+                }
+            }
+            e @ Self::Incompatible(_) => {
+                ErrorResult {
+                    cni_version,
+                    code: 1,
+                    msg: "Incompatible CNI version",
+                    details: e.to_string(),
+                }
+            }
+            e @ Self::MissingInput => {
+                ErrorResult {
+                    cni_version,
+                    code: 7,
+                    msg: "Missing payload",
+                    details: e.to_string(),
+                }
+            }
+            e @ Self::MissingEnv { .. } => {
+                ErrorResult {
+                    cni_version,
+                    code: 4,
+                    msg: "Missing environment variable",
+                    details: e.to_string(),
+                }
+            }
+            e @ Self::InvalidEnv { .. } => {
+                ErrorResult {
+                    cni_version,
+                    code: 4,
+                    msg: "Invalid environment variable",
+                    details: e.to_string(),
+                }
+            }
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Error)]
 #[error("must not be empty")]
 pub struct EmptyValueError;
@@ -556,54 +612,7 @@ impl Cni {
         let cni_version = Version::parse("1.0.0").unwrap();
 
         match Self::from_env() {
-            Err(CniError::Io(e)) => {
-                reply(ErrorResult {
-                    cni_version,
-                    code: 5,
-                    msg: "I/O error",
-                    details: e.to_string(),
-                });
-            }
-            Err(CniError::Json(e)) => {
-                reply(ErrorResult {
-                    cni_version,
-                    code: 6,
-                    msg: "Cannot decode JSON payload",
-                    details: e.to_string(),
-                });
-            }
-            Err(e @ CniError::Incompatible(_)) => {
-                reply(ErrorResult {
-                    cni_version,
-                    code: 1,
-                    msg: "Incompatible CNI version",
-                    details: e.to_string(),
-                });
-            }
-            Err(e @ CniError::MissingInput) => {
-                reply(ErrorResult {
-                    cni_version,
-                    code: 7,
-                    msg: "Missing payload",
-                    details: e.to_string(),
-                });
-            }
-            Err(e @ CniError::MissingEnv { .. }) => {
-                reply(ErrorResult {
-                    cni_version,
-                    code: 4,
-                    msg: "Missing environment variable",
-                    details: e.to_string(),
-                });
-            }
-            Err(e @ CniError::InvalidEnv { .. }) => {
-                reply(ErrorResult {
-                    cni_version,
-                    code: 4,
-                    msg: "Invalid environment variable",
-                    details: e.to_string(),
-                });
-            }
+            Err(e) => reply(e.into_result(cni_version)),
             Ok(Cni::Version(v)) => {
                 let mut supported_versions = SUPPORTED_VERSIONS
                     .iter()
@@ -638,4 +647,6 @@ impl Cni {
 
     // TODO: parse network config (administrator) files
     // maybe also with something that searches in common locations
+
+    // TODO: integrate with which (crate) to search the CNI_PATH
 }

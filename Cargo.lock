@@ -292,6 +292,7 @@ dependencies = [
  "base64",
  "cni-plugin",
  "ipnetwork",
+ "semver 0.11.0",
  "serde",
  "serde_json",
  "surf",
