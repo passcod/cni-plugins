@@ -289,11 +289,13 @@ name = "cni-ipam-consul"
 version = "0.1.0"
 dependencies = [
  "async-std",
+ "base64",
  "cni-plugin",
  "ipnetwork",
  "serde",
  "serde_json",
  "surf",
+ "thiserror",
 ]
 
 [[package]]
