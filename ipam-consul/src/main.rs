@@ -26,12 +26,6 @@ fn main() {
 		} => {
 			let cni_version = config.cni_version.clone(); // for error
 			let res: AppResult<IpamSuccessReply> = block_on(async move {
-				let alloc_id = if container_id.starts_with("cnitool-") {
-					"d3428f56-9480-d309-6343-4ec7feded3b3".into() // testing
-				} else {
-					container_id
-				};
-
 				let ipam = config.ipam.clone().ok_or(CniError::MissingField("ipam"))?;
 
 				let get_config = |name: &'static str| -> Result<&Value, CniError> {
@@ -54,7 +48,26 @@ fn main() {
 					})
 				};
 
-				let pool_name = todo!("get pool name from prev_result");
+				let prev_result: Option<IpamSuccessReply> = config
+					.prev_result
+					.map(|p| serde_json::from_value(p).map_err(CniError::Json))
+					.transpose()?;
+				let pools: Vec<Pool> = prev_result
+					.map(|p| p.specific.get("pools").cloned())
+					.flatten()
+					.map(|p| serde_json::from_value(p).map_err(CniError::Json))
+					.transpose()?
+					.unwrap_or_default();
+				// TODO: support multiple
+
+				let selected_pool = pools.first().cloned().ok_or(AppError::MissingResource {
+					remote: "prevResult",
+					resource: "pool",
+					path: "pools[0]".into(),
+				})?;
+				let pool_name = selected_pool.name;
+				let ip = selected_pool.requested_ip;
+
 				let consul_url = config_string("consul_url")?;
 
 				// lookup defined pool in consul kv at ipam/<pool name>/
@@ -94,12 +107,6 @@ fn main() {
 							)),
 						})?
 				};
-
-				let mut ip = config
-					.prev_result
-					.as_ref()
-					.map(|c| -> Option<IpAddr> { todo!("get ip") })
-					.flatten();
 
 				// if let Some(ip) = ip {
 				//     if !(pool.subnets...).contains(ip) {
@@ -181,10 +188,8 @@ fn main() {
 					.filter(|ip| !pool_known.contains_key(&ip.ip()))
 					.next()
 					.ok_or(AppError::PoolFull(pool_name))?;
-				// assign the container_id to the ip (if new/random ip, use cas=0)
-				// if assign fails (ie another cni got the ip), retry up to 3 times
 
-				// if no space in subnet, error
+				// assign the container_id to the ip (if new/random ip, use cas=0)
 
 				// return ipam result
 
@@ -214,4 +219,10 @@ fn main() {
 #[serde(rename_all = "camelCase")]
 struct PoolEntry {
 	pub target: String,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct Pool {
+	name: String,
+	requested_ip: Option<IpAddr>,
 }
