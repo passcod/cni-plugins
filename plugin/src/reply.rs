@@ -1,9 +1,10 @@
-use std::{io::stdout, net::IpAddr, path::PathBuf, process::exit};
+use std::{collections::HashMap, io::stdout, net::IpAddr, path::PathBuf, process::exit};
 
 use ipnetwork::IpNetwork;
 use macaddr::MacAddr6;
 use semver::Version;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::config::Route;
 
@@ -43,6 +44,9 @@ pub struct SuccessReply {
 	#[serde(default)]
 	pub routes: Vec<Route>,
 	pub dns: DnsReply,
+
+	#[serde(flatten)]
+	pub specific: HashMap<String, Value>,
 }
 
 impl<'de> ReplyPayload<'de> for SuccessReply {}
@@ -55,6 +59,7 @@ impl SuccessReply {
 				ips: self.ips,
 				routes: self.routes,
 				dns: self.dns,
+				specific: self.specific,
 			})
 		} else {
 			None
@@ -74,6 +79,9 @@ pub struct IpamSuccessReply {
 	pub routes: Vec<Route>,
 	#[serde(default)]
 	pub dns: DnsReply,
+
+	#[serde(flatten)]
+	pub specific: HashMap<String, Value>,
 }
 
 impl<'de> ReplyPayload<'de> for IpamSuccessReply {}
