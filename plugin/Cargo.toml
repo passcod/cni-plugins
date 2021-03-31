@@ -7,6 +7,8 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+async-process = { version = "1.0.2", optional = true }
+futures = { version = "0.3.13", optional = true }
 ipnetwork = "0.17.0"
 macaddr = { version = "1.0.1", features = ["serde_std"] }
 regex = "1.4.5"
@@ -14,3 +16,9 @@ semver = "0.11.0"
 serde = { version = "1.0.123", features = ["derive"] }
 serde_json = "1.0.62"
 thiserror = "1.0.23"
+tokio = { version = "1.4.0", optional = true }
+which = "4.1.0"
+
+[features]
+with-smol = ["async-process", "futures"]
+with-tokio = ["tokio/io-util", "tokio/process"]

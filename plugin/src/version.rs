@@ -9,19 +9,22 @@ use crate::reply::ReplyPayload;
 #[serde(rename_all = "camelCase")]
 pub(crate) struct VersionPayload {
 	#[serde(deserialize_with = "deserialize_version")]
+	#[serde(serialize_with = "serialize_version")]
 	pub cni_version: Version,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VersionResult {
+	#[serde(deserialize_with = "deserialize_version")]
 	#[serde(serialize_with = "serialize_version")]
 	pub cni_version: Version,
+	#[serde(deserialize_with = "deserialize_version_list")]
 	#[serde(serialize_with = "serialize_version_list")]
 	pub supported_versions: Vec<Version>,
 }
 
-impl ReplyPayload for VersionResult {}
+impl<'de> ReplyPayload<'de> for VersionResult {}
 
 pub(crate) fn serialize_version<S>(version: &Version, serializer: S) -> Result<S::Ok, S::Error>
 where
@@ -50,4 +53,15 @@ where
 	use serde::de::Error;
 	let j = String::deserialize(deserializer)?;
 	Version::from_str(&j).map_err(Error::custom)
+}
+
+pub(crate) fn deserialize_version_list<'de, D>(deserializer: D) -> Result<Vec<Version>, D::Error>
+where
+	D: Deserializer<'de>,
+{
+	use serde::de::Error;
+	let j = Vec::<String>::deserialize(deserializer)?;
+	j.iter()
+		.map(|s| Version::from_str(s).map_err(Error::custom))
+		.collect()
 }

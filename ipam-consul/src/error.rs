@@ -50,7 +50,7 @@ pub enum AppError {
 }
 
 impl AppError {
-	pub fn into_result(self, cni_version: Version) -> ErrorReply {
+	pub fn into_result(self, cni_version: Version) -> ErrorReply<'static> {
 		match self {
 			Self::Cni(e) => e.into_result(cni_version),
 			e @ AppError::Debug(_) => ErrorReply {

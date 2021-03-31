@@ -1,18 +1,18 @@
 use std::net::IpAddr;
 
 use ipnetwork::IpNetwork;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 // TODO: enforce all addresses being of the same type
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IpRange {
 	pub subnet: IpNetwork,
-	#[serde(default)]
+	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub range_start: Option<IpAddr>,
-	#[serde(default)]
+	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub range_end: Option<IpAddr>,
-	#[serde(default)]
+	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub gateway: Option<IpAddr>,
 }
 

@@ -10,13 +10,18 @@ use regex::Regex;
 use semver::{Version, VersionReq};
 use thiserror::Error;
 
+#[cfg(any(feature = "with-smol", feature = "with-tokio"))]
+pub use crate::delegation::delegate;
+pub use crate::reply::reply;
+
 use crate::config::NetworkConfig;
 use crate::error::{CniError, EmptyValueError, RegexValueError};
 use crate::path::CniPath;
-use crate::reply::reply;
 use crate::version::VersionResult;
 
 pub mod config;
+#[cfg(any(feature = "with-smol", feature = "with-tokio"))]
+pub mod delegation;
 pub mod error;
 pub mod ip_range;
 pub mod reply;
@@ -28,7 +33,7 @@ pub const COMPATIBLE_VERSIONS: &str = "=0.4.0||^1.0.0";
 pub const SUPPORTED_VERSIONS: &[&str] = &["0.4.0", "1.0.0"];
 
 #[derive(Clone, Copy, Debug)]
-enum Command {
+pub enum Command {
 	Add,
 	Del,
 	Check,
@@ -49,6 +54,17 @@ impl FromStr for Command {
 			"CHECK" => Ok(Self::Check),
 			"VERSION" => Ok(Self::Version),
 			_ => Err(InvalidCommandError),
+		}
+	}
+}
+
+impl AsRef<str> for Command {
+	fn as_ref(&self) -> &'static str {
+		match self {
+			Command::Add => "ADD",
+			Command::Del => "DEL",
+			Command::Check => "CHECK",
+			Command::Version => "VERSION",
 		}
 	}
 }
