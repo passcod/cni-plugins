@@ -46,21 +46,31 @@ fn main() {
 				let mut undo: Vec<String> = Vec::with_capacity(delegated_plugins.len());
 
 				for plugin in delegated_plugins {
+					undo.push(plugin.clone());
+
 					let result: IpamSuccessReply =
 						match delegate(&plugin, Command::Add, &config).await {
 							Ok(reply) => reply,
 							Err(err) => {
-								config.prev_result = None;
-								undo.reverse();
+								let mut errors = Vec::with_capacity(undo.len() + 1);
+								errors.push((plugin.clone(), err));
+
 								for plugin in undo {
-									let _: IpamSuccessReply =
-										delegate(&plugin, Command::Del, &config).await?;
+									let result: IpamSuccessReply = match delegate(&plugin, Command::Del, &config).await {
+										Ok(reply) => reply,
+										Err(err) => {
+											errors.push((plugin, err));
+											continue;
+										}
+									};
+
+									config.prev_result = Some(to_value(&result)?);
 								}
-								return Err(err);
+
+								return Err(multi_error(errors));
 							}
 						};
 
-					undo.push(plugin);
 					config.prev_result = Some(to_value(&result)?);
 					last_result = Some(result);
 				}
@@ -75,6 +85,10 @@ fn main() {
 				let mut last_result = None;
 				let mut errors = Vec::with_capacity(delegated_plugins.len());
 
+				// TODO: doc: Unlike top plugin order, ipam-delegate always runs its
+				// plugins in order, even for the DEL command. This is because it's
+				// expected that first plugins only do information-gathering, which
+				// is still needed when deleting, and the final plugin actions it all.
 				for plugin in delegated_plugins {
 					let result: IpamSuccessReply = match delegate(&plugin, command, &config).await {
 						Ok(reply) => reply,
@@ -84,24 +98,12 @@ fn main() {
 						}
 					};
 
+					config.prev_result = Some(to_value(&result)?);
 					last_result = Some(result);
 				}
 
 				if !errors.is_empty() {
-					Err(CniError::Delegated {
-						err: Box::new(CniError::Generic(
-							errors
-								.iter()
-								.map(|e| e.1.to_string())
-								.collect::<Vec<String>>()
-								.join("\n"),
-						)),
-						plugin: errors
-							.into_iter()
-							.map(|e| e.0)
-							.collect::<Vec<String>>()
-							.join(","),
-					})
+					Err(multi_error(errors))
 				} else if let Some(result) = last_result {
 					Ok(result)
 				} else {
@@ -115,5 +117,22 @@ fn main() {
 	match res {
 		Ok(res) => reply(res),
 		Err(res) => reply(res.into_result(cni_version)),
+	}
+}
+
+fn multi_error(errors: Vec<(String, CniError)>) -> CniError {
+	CniError::Delegated {
+		err: Box::new(CniError::Generic(
+			errors
+				.iter()
+				.map(|e| e.1.to_string())
+				.collect::<Vec<String>>()
+				.join("\n"),
+		)),
+		plugin: errors
+			.into_iter()
+			.map(|e| e.0)
+			.collect::<Vec<String>>()
+			.join(","),
 	}
 }
