@@ -5,73 +5,115 @@ use cni_plugin::{
 	reply::{reply, IpamSuccessReply},
 	Cni, Command,
 };
-use serde_json::Value;
+use serde_json::{from_value, to_value};
 
 fn main() {
-	match Cni::load() {
-		Cni::Add {
-			container_id,
-			mut config,
-			..
-		} => {
-			let cni_version = config.cni_version.clone(); // for error
-			let res: Result<IpamSuccessReply, CniError> = block_on(async move {
-				let ipam = config.ipam.clone().ok_or(CniError::MissingField("ipam"))?;
+	let cni = Cni::load();
 
-				let get_config = |name: &'static str| -> Result<&Value, CniError> {
-					ipam.specific
-						.get(name)
-						.ok_or(CniError::MissingField("ipam"))
-				};
-
-				let config_string = |name: &'static str| -> Result<String, CniError> {
-					get_config(name).and_then(|v| {
-						if let Value::String(s) = v {
-							Ok(s.to_owned())
-						} else {
-							Err(CniError::InvalidField {
-								field: name,
-								expected: "string",
-								value: v.clone(),
-							})
-						}
-					})
-				};
-
-				let selection_plugin = config_string("selection_plugin")?;
-				let allocation_plugin = config_string("allocation_plugin")?;
-
-				let selection_result: IpamSuccessReply =
-					delegate(&selection_plugin, Command::Add, &config).await?;
-				config.prev_result = Some(serde_json::to_value(&selection_result)?);
-				let allocation_result: IpamSuccessReply =
-					delegate(&allocation_plugin, Command::Add, &config).await?;
-
-				// return ipam result
-
-				Err(CniError::Debug(Box::new((
-					selection_plugin,
-					selection_result,
-					allocation_plugin,
-					allocation_result,
-				))))
-			});
-
-			match res {
-				Ok(res) => reply(res),
-				Err(res) => reply(res.into_result(cni_version)),
-			}
-		}
-		Cni::Del {
-			container_id,
-			config,
-			..
-		} => {}
-		Cni::Check {
-			container_id,
-			config,
-			..
-		} => {}
+	let (command, config) = match cni {
+		Cni::Add { config, .. } => (Command::Add, config),
+		Cni::Del { config, .. } => (Command::Del, config),
+		Cni::Check { config, .. } => (Command::Check, config),
 		Cni::Version(_) => unreachable!(),
+	};
+	let cni_version = config.cni_version.clone(); // for error
+
+	let res: Result<IpamSuccessReply, CniError> = block_on(async move {
+		let delegated_plugins = config
+			.ipam
+			.clone()
+			.ok_or(CniError::MissingField("ipam"))?
+			.specific
+			.get("delegates")
+			.ok_or(CniError::MissingField("ipam.delegates"))
+			.and_then(|v| {
+				let v: Vec<String> = from_value(v.to_owned())?;
+				Ok(v)
+			})?;
+
+		if delegated_plugins.is_empty() {
+			return Err(CniError::InvalidField {
+				field: "ipam.delegates",
+				expected: "at least one plugin",
+				value: "none".into(),
+			});
+		}
+
+		let mut config = config;
+		match command {
+			Command::Add => {
+				let mut last_result = None;
+				let mut undo: Vec<String> = Vec::with_capacity(delegated_plugins.len());
+
+				for plugin in delegated_plugins {
+					let result: IpamSuccessReply =
+						match delegate(&plugin, Command::Add, &config).await {
+							Ok(reply) => reply,
+							Err(err) => {
+								config.prev_result = None;
+								undo.reverse();
+								for plugin in undo {
+									let _: IpamSuccessReply =
+										delegate(&plugin, Command::Del, &config).await?;
+								}
+								return Err(err);
+							}
+						};
+
+					undo.push(plugin);
+					config.prev_result = Some(to_value(&result)?);
+					last_result = Some(result);
+				}
+
+				if let Some(result) = last_result {
+					Ok(result)
+				} else {
+					Err(CniError::Generic("no IPAM delegated plugins ran".into()))
+				}
+			}
+			Command::Del | Command::Check => {
+				let mut last_result = None;
+				let mut errors = Vec::with_capacity(delegated_plugins.len());
+
+				for plugin in delegated_plugins {
+					let result: IpamSuccessReply = match delegate(&plugin, command, &config).await {
+						Ok(reply) => reply,
+						Err(err) => {
+							errors.push((plugin, err));
+							continue;
+						}
+					};
+
+					last_result = Some(result);
+				}
+
+				if !errors.is_empty() {
+					Err(CniError::Delegated {
+						err: Box::new(CniError::Generic(
+							errors
+								.iter()
+								.map(|e| e.1.to_string())
+								.collect::<Vec<String>>()
+								.join("\n"),
+						)),
+						plugin: errors
+							.into_iter()
+							.map(|e| e.0)
+							.collect::<Vec<String>>()
+							.join(","),
+					})
+				} else if let Some(result) = last_result {
+					Ok(result)
+				} else {
+					Err(CniError::Generic("no IPAM delegated plugins ran".into()))
+				}
+			}
+			Command::Version => unreachable!(),
+		}
+	});
+
+	match res {
+		Ok(res) => reply(res),
+		Err(res) => reply(res.into_result(cni_version)),
 	}
 }
