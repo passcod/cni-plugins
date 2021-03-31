@@ -17,13 +17,6 @@ pub enum AppError {
 		err: Box<dyn std::error::Error>,
 	},
 
-	#[error("{remote}::{resource} at {path}")]
-	MissingResource {
-		remote: &'static str,
-		resource: &'static str,
-		path: String,
-	},
-
 	#[error("{remote}::{resource} at {path}: {err}")]
 	InvalidResource {
 		remote: &'static str,
@@ -32,9 +25,6 @@ pub enum AppError {
 		#[source]
 		err: Box<dyn std::error::Error>,
 	},
-
-	#[error("{0} does not have any free IP space")]
-	PoolFull(String),
 }
 
 impl AppError {
@@ -47,22 +37,10 @@ impl AppError {
 				msg: "Error fetching resource",
 				details: e.to_string(),
 			},
-			e @ AppError::MissingResource { .. } => ErrorReply {
-				cni_version,
-				code: 114,
-				msg: "Missing resource",
-				details: e.to_string(),
-			},
 			e @ AppError::InvalidResource { .. } => ErrorReply {
 				cni_version,
 				code: 117,
 				msg: "Invalid resource",
-				details: e.to_string(),
-			},
-			e @ AppError::PoolFull(_) => ErrorReply {
-				cni_version,
-				code: 122,
-				msg: "Pool is full",
 				details: e.to_string(),
 			},
 		}

@@ -3,4 +3,5 @@ members = [
   "plugin",
   "ipam-delegated",
   "ipam-consul",
+  "ipam-nomad",
 ]

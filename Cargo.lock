@@ -331,6 +331,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "cni-ipam-nomad"
+version = "0.1.0"
+dependencies = [
+ "async-std",
+ "base64",
+ "cni-plugin",
+ "ipnetwork",
+ "semver 0.11.0",
+ "serde",
+ "serde_json",
+ "surf",
+ "thiserror",
+]
+
+[[package]]
 name = "cni-plugin"
 version = "0.1.0"
 dependencies = [

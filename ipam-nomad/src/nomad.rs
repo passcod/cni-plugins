@@ -1,7 +1,6 @@
-use std::collections::HashMap;
+use std::net::IpAddr;
 
 use serde::Deserialize;
-use serde_json::Value;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "PascalCase")]
@@ -20,14 +19,14 @@ pub struct Job {
 #[serde(rename_all = "PascalCase")]
 pub struct DeGroup {
 	pub name: String,
-	pub meta: Option<HashMap<String, Value>>,
+	pub meta: Option<Meta>,
 	pub networks: Option<Vec<Network>>,
 }
 #[derive(Clone, Debug, Deserialize)]
 #[serde(from = "DeGroup")]
 pub struct Group {
 	pub name: String,
-	pub meta: HashMap<String, Value>,
+	pub meta: Meta,
 	pub networks: Vec<Network>,
 }
 impl From<DeGroup> for Group {
@@ -44,4 +43,13 @@ impl From<DeGroup> for Group {
 #[serde(rename_all = "PascalCase")]
 pub struct Network {
 	pub mode: String,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct Meta {
+	#[serde(default)]
+	pub network_pool: Option<String>,
+	#[serde(default)]
+	pub network_ip: Option<IpAddr>,
 }

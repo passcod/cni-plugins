@@ -1,11 +1,11 @@
 [package]
-name = "cni-ipam-consul"
+name = "cni-ipam-nomad"
 version = "0.1.0"
 authors = ["Félix Saparelli <felix@passcod.name>"]
 edition = "2018"
 
 [[bin]]
-name = "ipam-d-consul"
+name = "ipam-d-nomad"
 path = "src/main.rs"
 
 [dependencies]
