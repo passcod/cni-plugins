@@ -56,13 +56,14 @@ fn main() {
 								errors.push((plugin.clone(), err));
 
 								for plugin in undo {
-									let result: IpamSuccessReply = match delegate(&plugin, Command::Del, &config).await {
-										Ok(reply) => reply,
-										Err(err) => {
-											errors.push((plugin, err));
-											continue;
-										}
-									};
+									let result: IpamSuccessReply =
+										match delegate(&plugin, Command::Del, &config).await {
+											Ok(reply) => reply,
+											Err(err) => {
+												errors.push((plugin, err));
+												continue;
+											}
+										};
 
 									config.prev_result = Some(to_value(&result)?);
 								}

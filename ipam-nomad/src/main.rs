@@ -1,9 +1,12 @@
+use std::{collections::HashMap, net::IpAddr};
+
 use async_std::task::block_on;
 use cni_plugin::{
 	error::CniError,
-	reply::{reply, IpamSuccessReply},
+	reply::{reply, DnsReply, IpamSuccessReply},
 	Cni,
 };
+use serde::Serialize;
 use serde_json::Value;
 
 use crate::error::{AppError, AppResult};
@@ -15,6 +18,16 @@ mod nomad;
 fn main() {
 	match Cni::load() {
 		Cni::Add {
+			container_id,
+			config,
+			..
+		}
+		| Cni::Del {
+			container_id,
+			config,
+			..
+		}
+		| Cni::Check {
 			container_id,
 			config,
 			..
@@ -61,11 +74,11 @@ fn main() {
 					})?;
 
 				let group = alloc.job.task_groups.iter().find(|g| g.name == alloc.task_group).ok_or(AppError::InvalidResource {
-                    remote: "nomad",
-                    resource: "allocation",
-                    path: alloc_id.clone(),
-                    err: Box::new(CniError::Generic(format!("alloc {} is for task group {} but its own job definition is missing it", alloc_id, alloc.task_group)))
-                })?.clone();
+					remote: "nomad",
+					resource: "allocation",
+					path: alloc_id.clone(),
+					err: Box::new(CniError::Generic(format!("alloc {} is for task group {} but its own job definition is missing it", alloc_id, alloc.task_group)))
+				})?.clone();
 
 				// TODO: enable this
 				if false {
@@ -88,12 +101,25 @@ fn main() {
 					.network_pool
 					.ok_or(CniError::MissingField("alloc.group.meta.network-pool"))?;
 
-				let requested_ip = group.meta.network_ip;
+				let mut specific = HashMap::new();
+				specific.insert(
+					"pools".into(),
+					serde_json::to_value(&vec![Pool {
+						name: pool_name,
+						requested_ip: group.meta.network_ip,
+					}])
+					.map_err(CniError::Json)?,
+				);
+
+				Ok(IpamSuccessReply {
+					cni_version: config.cni_version,
+					ips: Vec::new(),
+					routes: Vec::new(),
+					dns: DnsReply::default(),
+					specific,
+				})
 
 				// TODO: support multiple cni networks / multiple groups?
-				// return ipam result with pool name and requested ip
-
-				Err(CniError::Debug(Box::new((pool_name, requested_ip))).into())
 			});
 
 			match res {
@@ -101,16 +127,12 @@ fn main() {
 				Err(res) => reply(res.into_result(cni_version)),
 			}
 		}
-		Cni::Del {
-			container_id,
-			config,
-			..
-		} => {}
-		Cni::Check {
-			container_id,
-			config,
-			..
-		} => {}
 		Cni::Version(_) => unreachable!(),
 	}
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct Pool {
+	name: String,
+	requested_ip: Option<IpAddr>,
 }
