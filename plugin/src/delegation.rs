@@ -54,14 +54,14 @@ where
 				});
 			}
 
-			let reader = Cursor::new(stdout);
-			let reply: S = serde_json::from_reader(reader).map_err(|err| CniError::Delegated {
-				plugin: sub_plugin.into(),
-				err: Box::new(err.into()),
-			})?;
-
 			if status.success() {
-				Ok(reply)
+				let reader = Cursor::new(stdout);
+				Ok(
+					serde_json::from_reader(reader).map_err(|err| CniError::Delegated {
+						plugin: sub_plugin.into(),
+						err: Box::new(err.into()),
+					})?,
+				)
 			} else {
 				if matches!(command, Command::Add) {
 					delegate_command(&plugin, Command::Del, &config_bytes)
@@ -74,7 +74,7 @@ where
 
 				Err(CniError::Delegated {
 					plugin: sub_plugin.into(),
-					err: Box::new(CniError::Generic(format!("{:#?}", reply))),
+					err: Box::new(CniError::Generic(String::from_utf8_lossy(&stdout).into())),
 				})
 			}
 		}
