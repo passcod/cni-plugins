@@ -14,8 +14,15 @@ pub struct ConsulPair<T> {
 
 #[derive(Clone, Debug)]
 pub enum ConsulValue<T> {
+	Null,
 	String(String),
 	Parsed(T),
+}
+
+impl<T> ConsulValue<T> {
+	pub fn is_null(&self) -> bool {
+		matches!(self, Self::Null)
+	}
 }
 
 #[derive(Debug, Error)]
@@ -32,15 +39,18 @@ impl<'de, T> Deserialize<'de> for ConsulValue<T> {
 	where
 		D: Deserializer<'de>,
 	{
-		let s = String::deserialize(deserializer)?;
-		Ok(Self::String(s))
+		let s = Option::<String>::deserialize(deserializer)?;
+		match s {
+			None => Ok(Self::Null),
+			Some(s) => Ok(Self::String(s)),
+		}
 	}
 }
 
 impl<T: DeserializeOwned> ConsulPair<T> {
 	pub fn parse_value(mut self) -> Result<Self, ConsulError> {
 		match self.value {
-			ConsulValue::Parsed(_) => Ok(self),
+			ConsulValue::Null | ConsulValue::Parsed(_) => Ok(self),
 			ConsulValue::String(raw) => {
 				let new_value = serde_json::from_slice(&base64::decode(&raw)?)?;
 				self.value = ConsulValue::Parsed(new_value);
@@ -49,10 +59,11 @@ impl<T: DeserializeOwned> ConsulPair<T> {
 		}
 	}
 
-	pub fn parsed_value(self) -> Result<T, ConsulError> {
+	pub fn parsed_value(self) -> Result<Option<T>, ConsulError> {
 		self.parse_value().map(|pair| match pair.value {
 			ConsulValue::String(_) => unreachable!(),
-			ConsulValue::Parsed(v) => v,
+			ConsulValue::Parsed(v) => Some(v),
+			ConsulValue::Null => None,
 		})
 	}
 }

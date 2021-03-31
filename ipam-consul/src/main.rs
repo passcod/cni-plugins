@@ -1,4 +1,4 @@
-use std::{net::IpAddr, str::FromStr};
+use std::{collections::BTreeMap, net::IpAddr, str::FromStr};
 
 use async_std::task::block_on;
 use cni_plugin::{
@@ -6,6 +6,8 @@ use cni_plugin::{
 	reply::{reply, IpamSuccessReply},
 	Cni,
 };
+use consul::ConsulValue;
+use serde::Deserialize;
 use serde_json::Value;
 
 use crate::consul::ConsulPair;
@@ -85,6 +87,12 @@ fn main() {
 							path: format!("ipam/{}", pool_name),
 							err: Box::new(err),
 						})?
+						.ok_or(AppError::InvalidResource {
+							remote: "consul",
+							resource: "pool",
+							path: format!("ipam/{}", pool_name),
+							err: OtherErr::boxed("expected IpRange as JSON, got null"),
+						})?
 				};
 
 				let alloc: Alloc = surf::get(format!("{}/v1/allocation/{}", nomad_url, alloc_id))
@@ -159,12 +167,71 @@ fn main() {
 				// }
 
 				// let pool_known = fetch and parse {consul_url}/v1/kv/ipam/{pool_name}/?recurse
+				let pool_known: Vec<ConsulPair<PoolEntry>> =
+					surf::get(format!("{}/v1/kv/ipam/{}/?recurse", consul_url, pool_name))
+						.recv_json()
+						.await
+						.map_err(|err| AppError::Fetch {
+							remote: "consul",
+							resource: "ip-pool",
+							err: err.into(),
+						})?;
+				let pool_known: BTreeMap<IpAddr, String> = pool_known
+					.into_iter()
+					.filter(|pair| !pair.value.is_null())
+					.map(|pair| {
+						let key = pair.key.clone(); // for errors
+						pair.parse_value()
+							.map_err(|err| AppError::InvalidResource {
+								remote: "consul",
+								resource: "ip-pool",
+								path: key.clone(),
+								err: OtherErr::boxed(format!(
+									"expected value to be a JSON string; {}",
+									err
+								)),
+							})
+							.and_then(|pair| {
+								pair.key
+									.split('/')
+									.last()
+									.ok_or_else(|| {
+										unreachable!("due to how the key is constructed it will always have at least one segment")
+									})
+									.and_then(|ip| {
+										IpAddr::from_str(ip).map_err(|err| {
+											AppError::InvalidResource {
+												remote: "consul",
+												resource: "ip-pool",
+												path: key.clone(),
+												err: OtherErr::boxed(format!(
+													"expected key to be an IP address; {}",
+													err
+												)),
+											}
+										})
+									})
+									.map(|ip| {
+										(
+											ip,
+											if let ConsulValue::Parsed(v) = pair.value {
+												v.target
+											} else {
+												unreachable!("consul value should be parsed and nulls already filtered")
+											},
+										)
+									})
+							})
+					})
+					.collect::<AppResult<BTreeMap<_, _>>>()?;
+
+				eprintln!("{:?}", pool_known);
 
 				// if no ip, fetch the list under the consul kv and pick the next one
 				let next_ip = pool
 					.iter()
 					.flat_map(|range| range.iter_free())
-					.filter(|ip| todo!("check pool_known"))
+					.filter(|ip| !pool_known.contains_key(&ip.ip()))
 					.next()
 					.ok_or(AppError::PoolFull(pool_name))?;
 				// assign the container_id to the ip (if new/random ip, use cas=0)
@@ -174,7 +241,13 @@ fn main() {
 
 				// return ipam result
 
-				Err(AppError::Debug(Box::new((pool, ip, group.networks))))
+				Err(AppError::Debug(Box::new((
+					pool,
+					ip,
+					group.networks,
+					pool_known,
+					next_ip,
+				))))
 			});
 
 			match res {
@@ -194,4 +267,10 @@ fn main() {
 		} => {}
 		Cni::Version(_) => unreachable!(),
 	}
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PoolEntry {
+	pub target: String,
 }
