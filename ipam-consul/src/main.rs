@@ -223,7 +223,37 @@ fn main() {
 			container_id,
 			config,
 			..
-		} => {}
+		} => {
+			let cni_version = config.cni_version.clone(); // for error
+			info!("ipam-consul serving spec v{} command=Del", cni_version);
+
+			let res: AppResult<IpamSuccessReply> = block_on(async move {
+				let ipam = config.ipam.clone().ok_or(CniError::MissingField("ipam"))?;
+				debug!("ipam={:?}", ipam);
+
+				let prev_result: Option<IpamSuccessReply> = config
+					.prev_result
+					.map(|p| serde_json::from_value(p).map_err(CniError::Json))
+					.transpose()?;
+				debug!("prevResult={:?}", prev_result);
+
+				Ok(IpamSuccessReply {
+				    cni_version: config.cni_version,
+				    ips: Vec::new(),
+				    routes: Vec::new(),
+				    dns: Default::default(),
+				    specific: Default::default(),
+				})
+			});
+
+			match res {
+				Ok(res) => reply(res),
+				Err(res) => {
+					error!("error: {}", res);
+					reply(res.into_result(cni_version))
+				},
+			}
+		}
 		Cni::Check {
 			container_id,
 			config,
