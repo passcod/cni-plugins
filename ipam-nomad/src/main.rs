@@ -57,6 +57,7 @@ fn main() {
 					})?;
 				debug!("nomad-servers={}", nomad_servers.iter().map(ToString::to_string).collect::<Vec<String>>().join(","));
 
+				nomad_servers.reverse();
 				let mut nomad_url = nomad_servers
 					.pop()
 					.ok_or(CniError::MissingField("ipam.nomad_servers"))?;
