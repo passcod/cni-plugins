@@ -206,7 +206,7 @@ fn main() {
 async fn good_server<'u>(list: &'u [Url]) -> AppResult<&'u Url> {
 	let mut last_err = None;
 	for url in list {
-		match surf::get(url.join("v1/kv/ipam")?).await {
+		match surf::get(url.join("v1/kv/ipam/")?).await {
 			Ok(res) if res.status().is_success() => {
 				debug!("found good consul server: {}", url);
 				return Ok(url);
