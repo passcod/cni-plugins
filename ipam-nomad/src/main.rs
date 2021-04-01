@@ -6,6 +6,7 @@ use cni_plugin::{
 	reply::{reply, DnsReply, IpamSuccessReply},
 	Cni,
 };
+use log::{debug, info, error};
 use serde::Serialize;
 use serde_json::Value;
 use url::Url;
@@ -35,14 +36,17 @@ fn main() {
 			..
 		} => {
 			let cni_version = config.cni_version.clone(); // for error
+			info!("ipam-consul serving spec v{} command=any", cni_version);
+
 			let res: AppResult<IpamSuccessReply> = block_on(async move {
 				let alloc_id = if container_id.starts_with("cnitool-") {
-					"d3428f56-9480-d309-6343-4ec7feded3b3".into() // testing
+					"f66ad535-bf6f-5c24-5611-9b45af038bbe".into() // testing
 				} else {
 					container_id
 				};
 
 				let ipam = config.ipam.clone().ok_or(CniError::MissingField("ipam"))?;
+				debug!("ipam={:?}", ipam);
 
 				let mut nomad_servers = ipam
 					.specific
@@ -51,6 +55,7 @@ fn main() {
 					.and_then(|v| -> Result<Vec<Url>, _> {
 						serde_json::from_value(v.to_owned()).map_err(CniError::Json)
 					})?;
+				debug!("nomad-servers={}", nomad_servers.iter().map(ToString::to_string).collect::<Vec<String>>().join(","));
 
 				let mut nomad_url = nomad_servers
 					.pop()
@@ -64,7 +69,10 @@ fn main() {
 							resource: "allocation",
 							err: err.into(),
 						}) {
-						Ok(res) => break res,
+						Ok(res) => {
+							debug!("found good nomad server: {}", nomad_url);
+							break res;
+						},
 						Err(err) => {
 							if let Some(url) = nomad_servers.pop() {
 								nomad_url = url;
@@ -74,7 +82,9 @@ fn main() {
 						}
 					}
 				};
+				debug!("alloc={:?}", alloc);
 
+				debug!("checking we have the group definition");
 				let group = alloc.job.task_groups.iter().find(|g| g.name == alloc.task_group).ok_or(AppError::InvalidResource {
 					remote: "nomad",
 					resource: "allocation",
@@ -84,6 +94,7 @@ fn main() {
 
 				// TODO: enable this
 				if false {
+					debug!("checking group network is a cni network");
 					if let Some(network_mode) = group.networks.first().map(|n| &n.mode) {
 						if !network_mode.starts_with("cni/") {
 							return Err(CniError::InvalidField {
@@ -98,17 +109,25 @@ fn main() {
 					}
 				}
 
-				let pool_name = group
+				debug!("reading pool name");
+				let name = group
 					.meta
 					.network_pool
 					.ok_or(CniError::MissingField("alloc.group.meta.network-pool"))?;
+				info!("pool-name={}", name);
+
+				debug!("reading requested ip");
+				let requested_ip = group
+					.meta
+					.network_ip;
+				info!("requested-ip={:?}", requested_ip);
 
 				let mut specific = HashMap::new();
 				specific.insert(
 					"pools".into(),
 					serde_json::to_value(&vec![Pool {
-						name: pool_name,
-						requested_ip: group.meta.network_ip,
+						name,
+						requested_ip,
 					}])
 					.map_err(CniError::Json)?,
 				);
@@ -126,7 +145,10 @@ fn main() {
 
 			match res {
 				Ok(res) => reply(res),
-				Err(res) => reply(res.into_result(cni_version)),
+				Err(res) => {
+					error!("error: {}", res);
+					reply(res.into_result(cni_version))
+				},
 			}
 		}
 		Cni::Version(_) => unreachable!(),

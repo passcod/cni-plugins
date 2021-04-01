@@ -120,10 +120,7 @@ fn main() {
 	});
 
 	match res {
-		Ok(res) => {
-			debug!("success! {:#?}", res);
-			reply(res)
-		},
+		Ok(res) => reply(res),
 		Err(res) => {
 			error!("error: {}", res);
 			reply(res.into_result(cni_version))

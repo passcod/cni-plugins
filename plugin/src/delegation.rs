@@ -139,7 +139,7 @@ async fn delegate_command(
 	debug!("awaiting child");
 	let output = child.output().await?;
 
-	info!("delegate plugin at {} for command={} has returned status={} stdout bytes={}", plugin.display(), command, output.status, output.stdout.len());
+	info!("delegate plugin at {} for command={} has returned with {}; stdout bytes={}", plugin.display(), command, output.status, output.stdout.len());
 	Ok((output.status, output.stdout))
 }
 
@@ -180,6 +180,6 @@ async fn delegate_command(
 	debug!("awaiting child");
 	let output = child.wait_with_output().await?;
 
-	info!("delegate plugin at {} for command={} has returned status={} stdout bytes={}", plugin.display(), command, output.status, output.stdout.len());
+	info!("delegate plugin at {} for command={} has returned with {}; stdout bytes={}", plugin.display(), command, output.status, output.stdout.len());
 	Ok((output.status, output.stdout))
 }

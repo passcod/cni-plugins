@@ -8,6 +8,7 @@ use cni_plugin::{
 	Cni,
 };
 use consul::ConsulValue;
+use log::{debug, info, error};
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -26,8 +27,11 @@ fn main() {
 			..
 		} => {
 			let cni_version = config.cni_version.clone(); // for error
+			info!("ipam-consul serving spec v{} command=Add", cni_version);
+
 			let res: AppResult<IpamSuccessReply> = block_on(async move {
 				let ipam = config.ipam.clone().ok_or(CniError::MissingField("ipam"))?;
+				debug!("ipam={:?}", ipam);
 
 				let get_config = |name: &'static str| -> Result<&Value, CniError> {
 					ipam.specific
@@ -53,12 +57,15 @@ fn main() {
 					.prev_result
 					.map(|p| serde_json::from_value(p).map_err(CniError::Json))
 					.transpose()?;
+				debug!("prevResult={:?}", prev_result);
+
 				let pools: Vec<Pool> = prev_result
 					.map(|p| p.specific.get("pools").cloned())
 					.flatten()
 					.map(|p| serde_json::from_value(p).map_err(CniError::Json))
 					.transpose()?
 					.unwrap_or_default();
+				debug!("pools={:?}", pools);
 				// TODO: support multiple
 
 				let selected_pool = pools.first().cloned().ok_or(AppError::MissingResource {
@@ -68,8 +75,10 @@ fn main() {
 				})?;
 				let pool_name = selected_pool.name;
 				let ip = selected_pool.requested_ip;
+				debug!("pool name={} requested-ip={:?}", pool_name, ip);
 
 				let consul_url = config_string("consul_url")?;
+				debug!("consul url={}", consul_url);
 
 				// lookup defined pool in consul kv at ipam/<pool name>/
 				// error if not found
@@ -108,6 +117,7 @@ fn main() {
 							)),
 						})?
 				};
+				debug!("pool={:?}", pool);
 
 				// if let Some(ip) = ip {
 				//     if !(pool.subnets...).contains(ip) {
@@ -180,7 +190,7 @@ fn main() {
 					})
 					.collect::<AppResult<BTreeMap<_, _>>>()?;
 
-				eprintln!("{:?}", pool_known);
+				debug!("pool-known={:?}", pool_known);
 
 				// if no ip, fetch the list under the consul kv and pick the next one
 				let next_ip = pool
@@ -189,6 +199,7 @@ fn main() {
 					.filter(|ip| !pool_known.contains_key(&ip.ip()))
 					.next()
 					.ok_or(AppError::PoolFull(pool_name))?;
+				debug!("next-ip={:?}", next_ip);
 
 				// assign the container_id to the ip (if new/random ip, use cas=0)
 
@@ -198,8 +209,14 @@ fn main() {
 			});
 
 			match res {
-				Ok(res) => reply(res),
-				Err(res) => reply(res.into_result(cni_version)),
+				Ok(res) => {
+					debug!("success! {:#?}", res);
+					reply(res)
+				},
+				Err(res) => {
+					error!("error: {}", res);
+					reply(res.into_result(cni_version))
+				},
 			}
 		}
 		Cni::Del {
