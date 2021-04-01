@@ -8,6 +8,7 @@ use cni_plugin::{
 	Cni,
 };
 use consul::ConsulValue;
+use ipnetwork::IpNetwork;
 use log::{debug, error, info, warn};
 use serde::Deserialize;
 use serde_json::Value;
@@ -72,8 +73,10 @@ fn main() {
 					path: "pools[0]".into(),
 				})?;
 				let pool_name = selected_pool.name;
-				let ip = selected_pool.requested_ip;
-				debug!("pool name={} requested-ip={:?}", pool_name, ip);
+				debug!(
+					"pool name={} requested-ip={:?}",
+					pool_name, selected_pool.requested_ip
+				);
 
 				let mut consul_servers = ipam
 					.specific
@@ -148,18 +151,6 @@ fn main() {
 					})?;
 				debug!("pool={:?}", pool);
 
-				// if let Some(ip) = ip {
-				//     if !(pool.subnets...).contains(ip) {
-				//         return Err(AppError::TODO {
-				//             // Requested IP not in pool
-				//             format!(
-				//                 "pool {} does not contain requested address {}",
-				//                 pool_name, ip
-				//             ),
-				//         });
-				//     }
-				// }
-
 				// let pool_known = fetch and parse {consul_url}/v1/kv/ipam/{pool_name}/?recurse
 				let pool_known: Vec<ConsulPair<PoolEntry>> = surf::get(
 					consul_url
@@ -221,17 +212,35 @@ fn main() {
 							})
 					})
 					.collect::<AppResult<BTreeMap<_, _>>>()?;
-
 				debug!("pool-known={:?}", pool_known);
 
-				// if no ip, fetch the list under the consul kv and pick the next one
-				let next_ip = pool
-					.iter()
-					.flat_map(|range| range.iter_free())
-					.filter(|ip| !pool_known.contains_key(&ip.ip()))
-					.next()
-					.ok_or(AppError::PoolFull(pool_name))?;
-				debug!("next-ip={:?}", next_ip);
+				let ip = if let Some(ip) = selected_pool.requested_ip {
+					debug!("checking whether requested ip fits in the selected pool");
+
+					let mut prefix = None;
+					for range in &pool {
+						if range.subnet.contains(ip) {
+							prefix = Some(range.subnet.prefix());
+						}
+					}
+
+					let prefix = prefix.ok_or(AppError::NotInPool {
+						pool: pool_name,
+						ip,
+					})?;
+
+					// UNWRAP: panics on invalid prefix, but prefix comes from existing IpNetwork
+					IpNetwork::new(ip, prefix).unwrap()
+				} else {
+					debug!("none requested, picking next ip in pool");
+					pool.iter()
+						.flat_map(|range| range.iter_free())
+						.filter(|ip| !pool_known.contains_key(&ip.ip()))
+						.next()
+						.ok_or(AppError::PoolFull(pool_name))?
+				};
+
+				debug!("ip={:?}", ip);
 
 				// assign the container_id to the ip (if new/random ip, use cas=0)
 

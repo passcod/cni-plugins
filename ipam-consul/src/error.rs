@@ -1,3 +1,5 @@
+use std::net::IpAddr;
+
 use cni_plugin::{error::CniError, reply::ErrorReply};
 use semver::Version;
 use thiserror::Error;
@@ -38,6 +40,9 @@ pub enum AppError {
 
 	#[error("{0} does not have any free IP space")]
 	PoolFull(String),
+
+	#[error("{pool} cannot contain {ip}")]
+	NotInPool { pool: String, ip: IpAddr },
 }
 
 impl AppError {
@@ -72,6 +77,12 @@ impl AppError {
 				cni_version,
 				code: 122,
 				msg: "Pool is full",
+				details: e.to_string(),
+			},
+			e @ AppError::NotInPool { .. } => ErrorReply {
+				cni_version,
+				code: 124,
+				msg: "IP not in pool",
 				details: e.to_string(),
 			},
 		}
