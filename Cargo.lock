@@ -327,6 +327,7 @@ dependencies = [
  "serde_json",
  "surf",
  "thiserror",
+ "url",
 ]
 
 [[package]]

@@ -9,6 +9,9 @@ pub enum AppError {
 	#[error(transparent)]
 	Cni(#[from] CniError),
 
+	#[error(transparent)]
+	Url(#[from] url::ParseError),
+
 	#[error("{remote}::{resource}: {err}")]
 	Fetch {
 		remote: &'static str,
@@ -41,6 +44,12 @@ impl AppError {
 	pub fn into_result(self, cni_version: Version) -> ErrorReply<'static> {
 		match self {
 			Self::Cni(e) => e.into_result(cni_version),
+			e @ AppError::Url(_) => ErrorReply {
+				cni_version,
+				code: 120,
+				msg: "Error constructing URL",
+				details: e.to_string(),
+			},
 			e @ AppError::Fetch { .. } => ErrorReply {
 				cni_version,
 				code: 111,

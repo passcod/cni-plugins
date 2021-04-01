@@ -8,9 +8,10 @@ use cni_plugin::{
 	Cni,
 };
 use consul::ConsulValue;
-use log::{debug, info, error};
+use log::{debug, info, error, warn};
 use serde::Deserialize;
 use serde_json::Value;
+use url::Url;
 
 use crate::consul::ConsulPair;
 use crate::error::{AppError, AppResult};
@@ -33,14 +34,11 @@ fn main() {
 				let ipam = config.ipam.clone().ok_or(CniError::MissingField("ipam"))?;
 				debug!("ipam={:?}", ipam);
 
-				let get_config = |name: &'static str| -> Result<&Value, CniError> {
+				let config_string = |name: &'static str| -> Result<String, CniError> {
 					ipam.specific
 						.get(name)
-						.ok_or(CniError::MissingField("ipam"))
-				};
-
-				let config_string = |name: &'static str| -> Result<String, CniError> {
-					get_config(name).and_then(|v| {
+						.ok_or(CniError::MissingField(name))
+						.and_then(|v| {
 						if let Value::String(s) = v {
 							Ok(s.to_owned())
 						} else {
@@ -77,46 +75,70 @@ fn main() {
 				let ip = selected_pool.requested_ip;
 				debug!("pool name={} requested-ip={:?}", pool_name, ip);
 
-				let consul_url = config_string("consul_url")?;
-				debug!("consul url={}", consul_url);
+				let mut consul_servers = ipam
+					.specific
+					.get("consul_servers")
+					.ok_or(CniError::MissingField("ipam.consul_servers"))
+					.and_then(|v| -> Result<Vec<Url>, _> {
+						serde_json::from_value(v.to_owned()).map_err(CniError::Json)
+					})?;
+				debug!("consul-servers={}", consul_servers.iter().map(ToString::to_string).collect::<Vec<String>>().join(","));
+
+				consul_servers.reverse();
+				let mut consul_url = consul_servers
+					.pop()
+					.ok_or(CniError::MissingField("ipam.consul_servers"))?;
+
+				let keys: Vec<ConsulPair<Vec<IpRange>>> = loop {
+					match surf::get(
+						consul_url.join("v1/kv/ipam/")?.join(&pool_name)?)
+					.recv_json()
+					.await
+					.map_err(|err| AppError::Fetch {
+						remote: "consul",
+						resource: "pool name",
+						err: err.into(),
+					}) {
+						Ok(res) => {
+							debug!("found good consul server: {}", consul_url);
+							break res;
+						},
+						Err(err) => {
+							if let Some(url) = consul_servers.pop() {
+								warn!("bad consul server, trying next. err={}", err);
+								consul_url = url;
+							} else {
+								return Err(err);
+							}
+						}
+					}
+				};
 
 				// lookup defined pool in consul kv at ipam/<pool name>/
 				// error if not found
 				// parse as JSON Vec<cni::IpRange>
-				let pool = {
-					let keys: Vec<ConsulPair<Vec<IpRange>>> =
-						surf::get(format!("{}/v1/kv/ipam/{}", consul_url, pool_name))
-							.recv_json()
-							.await
-							.map_err(|err| AppError::Fetch {
-								remote: "consul",
-								resource: "pool name",
-								err: err.into(),
-							})?;
-
-					keys.into_iter()
-						.next()
-						.ok_or(AppError::MissingResource {
-							remote: "consul",
-							resource: "pool",
-							path: format!("ipam/{}", pool_name),
-						})?
-						.parsed_value()
-						.map_err(|err| AppError::InvalidResource {
-							remote: "consul",
-							resource: "pool",
-							path: format!("ipam/{}", pool_name),
-							err: Box::new(err),
-						})?
-						.ok_or(AppError::InvalidResource {
-							remote: "consul",
-							resource: "pool",
-							path: format!("ipam/{}", pool_name),
-							err: Box::new(CniError::Generic(
-								"expected IpRange as JSON, got null".into(),
-							)),
-						})?
-				};
+				let pool = keys.into_iter()
+					.next()
+					.ok_or(AppError::MissingResource {
+						remote: "consul",
+						resource: "pool",
+						path: format!("ipam/{}", pool_name),
+					})?
+					.parsed_value()
+					.map_err(|err| AppError::InvalidResource {
+						remote: "consul",
+						resource: "pool",
+						path: format!("ipam/{}", pool_name),
+						err: Box::new(err),
+					})?
+					.ok_or(AppError::InvalidResource {
+						remote: "consul",
+						resource: "pool",
+						path: format!("ipam/{}", pool_name),
+						err: Box::new(CniError::Generic(
+							"expected IpRange as JSON, got null".into(),
+						)),
+					})?;
 				debug!("pool={:?}", pool);
 
 				// if let Some(ip) = ip {
@@ -133,7 +155,7 @@ fn main() {
 
 				// let pool_known = fetch and parse {consul_url}/v1/kv/ipam/{pool_name}/?recurse
 				let pool_known: Vec<ConsulPair<PoolEntry>> =
-					surf::get(format!("{}/v1/kv/ipam/{}/?recurse", consul_url, pool_name))
+					surf::get(consul_url.join("v1/kv/ipam/")?.join(&format!("{}/?recurse", pool_name))?)
 						.recv_json()
 						.await
 						.map_err(|err| AppError::Fetch {
@@ -205,7 +227,7 @@ fn main() {
 
 				// return ipam result
 
-				Err(CniError::Debug(Box::new((pool, ip, pool_known, next_ip))).into())
+				Err(CniError::Generic("TBC".into()).into())
 			});
 
 			match res {

@@ -6,9 +6,8 @@ use cni_plugin::{
 	reply::{reply, DnsReply, IpamSuccessReply},
 	Cni,
 };
-use log::{debug, info, error};
+use log::{debug, info, error, warn};
 use serde::Serialize;
-use serde_json::Value;
 use url::Url;
 
 use crate::error::{AppError, AppResult};
@@ -76,6 +75,7 @@ fn main() {
 						},
 						Err(err) => {
 							if let Some(url) = nomad_servers.pop() {
+								warn!("bad nomad server, trying next. err={}", err);
 								nomad_url = url;
 							} else {
 								return Err(err);
