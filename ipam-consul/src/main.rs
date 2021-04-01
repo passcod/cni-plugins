@@ -134,7 +134,7 @@ fn main() {
 				debug!("pool={:?}", pool);
 
 				// let pool_known = fetch and parse {consul_url}/v1/kv/ipam/{pool_name}/?recurse
-				let mut pool_url = consul_url.join("v1/kv/ipam/")?.join(&pool_name)?;
+				let mut pool_url = consul_url.join(&format!("v1/kv/ipam/{}/", pool_name))?;
 				pool_url.set_query(Some("recurse"));
 				let pool_known: Vec<ConsulPair<PoolEntry>> = surf::get(pool_url)
 					.recv_json()
@@ -227,7 +227,7 @@ fn main() {
 
 				// assign the container_id to the ip (if new/random ip, use cas=0)
 				let mut assign_url =
-					consul_url.join(&format!("v1/kv/ipam/{}/{}", pool_name, ip))?;
+					consul_url.join(&format!("v1/kv/ipam/{}/{}", pool_name, ip.ip()))?;
 
 				if selected_pool.requested_ip.is_none() {
 					debug!("creating address"); // cas=0 ensures that it will fail if it's an update
