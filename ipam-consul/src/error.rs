@@ -14,13 +14,8 @@ pub enum AppError {
 	#[error(transparent)]
 	Url(#[from] url::ParseError),
 
-	#[error("{remote}::{resource}: {err}")]
-	Http {
-		remote: &'static str,
-		resource: &'static str,
-		#[source]
-		err: Box<dyn std::error::Error>,
-	},
+	#[error("{0}")]
+	Http(#[source] Box<dyn std::error::Error>),
 
 	#[error("{remote}::{resource} at {path}")]
 	MissingResource {
@@ -58,10 +53,10 @@ impl AppError {
 				msg: "Error constructing URL",
 				details: e.to_string(),
 			},
-			e @ AppError::Http { .. } => ErrorReply {
+			e @ AppError::Http(_) => ErrorReply {
 				cni_version,
 				code: 111,
-				msg: "Error fetching resource",
+				msg: "HTTP",
 				details: e.to_string(),
 			},
 			e @ AppError::MissingResource { .. } => ErrorReply {
@@ -95,5 +90,11 @@ impl AppError {
 				details: e.to_string(),
 			},
 		}
+	}
+}
+
+impl From<surf::Error> for AppError {
+	fn from(err: surf::Error) -> Self {
+		Self::Http(err.into())
 	}
 }

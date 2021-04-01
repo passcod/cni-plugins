@@ -5,7 +5,7 @@ use cni_plugin::{
 	error::CniError,
 	ip_range::IpRange,
 	reply::{reply, IpReply, IpamSuccessReply},
-	Cni,
+	Cni, Command, Inputs,
 };
 use consul::ConsulValue;
 use ipnetwork::IpNetwork;
@@ -20,179 +20,74 @@ mod consul;
 mod error;
 
 fn main() {
-	cni_plugin::install_logger("ipam-consul.log");
-	match Cni::load() {
-		Cni::Add {
-			container_id,
-			config,
-			..
-		} => {
-			let cni_version = config.cni_version.clone(); // for error
-			info!("ipam-consul serving spec v{} command=Add", cni_version);
+	cni_plugin::install_logger("ipam-da-consul.log");
 
-			let res: AppResult<IpamSuccessReply> = block_on(async move {
-				let ipam = config.ipam.clone().ok_or(CniError::MissingField("ipam"))?;
-				debug!("ipam={:?}", ipam);
+	// UNWRAP: None on Version, but Version is handled by load()
+	let Inputs {
+		command,
+		container_id,
+		config,
+		..
+	} = Cni::load().into_inputs().unwrap();
 
-				let prev_result: Option<IpamSuccessReply> = config
-					.prev_result
-					.map(|p| serde_json::from_value(p).map_err(CniError::Json))
-					.transpose()?;
-				debug!("prevResult={:?}", prev_result);
+	let cni_version = config.cni_version.clone(); // for error
+	info!(
+		"ipam-da-consul serving spec v{} for command={:?}",
+		cni_version, command
+	);
 
-				let pools: Vec<Pool> = prev_result
-					.map(|p| p.specific.get("pools").cloned())
-					.flatten()
-					.map(|p| serde_json::from_value(p).map_err(CniError::Json))
-					.transpose()?
-					.unwrap_or_default();
-				debug!("pools={:?}", pools);
-				// TODO: support multiple
+	let res: AppResult<IpamSuccessReply> = block_on(async move {
+		let ipam = config.ipam.clone().ok_or(CniError::MissingField("ipam"))?;
+		debug!("ipam={:?}", ipam);
 
-				let selected_pool = pools.first().cloned().ok_or(AppError::MissingResource {
-					remote: "prevResult",
-					resource: "pool",
-					path: "pools[0]".into(),
-				})?;
-				let pool_name = selected_pool.name;
-				debug!(
-					"pool name={} requested-ip={:?}",
-					pool_name, selected_pool.requested_ip
-				);
+		let prev_result: Option<IpamSuccessReply> = config
+			.prev_result
+			.map(|p| serde_json::from_value(p).map_err(CniError::Json))
+			.transpose()?;
+		debug!("prevResult={:?}", prev_result);
 
-				let mut consul_servers = ipam
-					.specific
-					.get("consul_servers")
-					.ok_or(CniError::MissingField("ipam.consul_servers"))
-					.and_then(|v| -> Result<Vec<Url>, _> {
-						serde_json::from_value(v.to_owned()).map_err(CniError::Json)
-					})?;
-				debug!(
-					"consul-servers={}",
-					consul_servers
-						.iter()
-						.map(ToString::to_string)
-						.collect::<Vec<String>>()
-						.join(",")
-				);
+		let pools: Vec<Pool> = prev_result
+			.as_ref()
+			.map(|p| p.specific.get("pools").cloned())
+			.flatten()
+			.map(|p| serde_json::from_value(p).map_err(CniError::Json))
+			.transpose()?
+			.unwrap_or_default();
+		debug!("pools={:?}", pools);
+		// TODO: support multiple?
 
-				consul_servers.reverse();
-				let mut consul_url = consul_servers
-					.pop()
-					.ok_or(CniError::MissingField("ipam.consul_servers"))?;
+		let consul_servers = ipam
+			.specific
+			.get("consul_servers")
+			.ok_or(CniError::MissingField("ipam.consul_servers"))
+			.and_then(|v| -> Result<Vec<Url>, _> {
+				serde_json::from_value(v.to_owned()).map_err(CniError::Json)
+			})?;
+		debug!(
+			"consul-servers={}",
+			consul_servers
+				.iter()
+				.map(ToString::to_string)
+				.collect::<Vec<String>>()
+				.join(",")
+		);
 
-				let keys: Vec<ConsulPair<Vec<IpRange>>> = loop {
-					match surf::get(consul_url.join("v1/kv/ipam/")?.join(&pool_name)?)
-						.recv_json()
-						.await
-						.map_err(|err| AppError::Http {
-							remote: "consul",
-							resource: "pool name",
-							err: err.into(),
-						}) {
-						Ok(res) => {
-							debug!("found good consul server: {}", consul_url);
-							break res;
-						}
-						Err(err) => {
-							if let Some(url) = consul_servers.pop() {
-								warn!("bad consul server, trying next. err={}", err);
-								consul_url = url;
-							} else {
-								return Err(err);
-							}
-						}
-					}
-				};
+		let consul_url = good_server(&consul_servers).await?;
 
-				// lookup defined pool in consul kv at ipam/<pool name>/
-				// error if not found
-				// parse as JSON Vec<cni::IpRange>
-				let pool = keys
-					.into_iter()
-					.next()
-					.ok_or(AppError::MissingResource {
-						remote: "consul",
-						resource: "pool",
-						path: format!("ipam/{}", pool_name),
-					})?
-					.parsed_value()
-					.map_err(|err| AppError::InvalidResource {
-						remote: "consul",
-						resource: "pool",
-						path: format!("ipam/{}", pool_name),
-						err: Box::new(err),
-					})?
-					.ok_or(AppError::InvalidResource {
-						remote: "consul",
-						resource: "pool",
-						path: format!("ipam/{}", pool_name),
-						err: Box::new(CniError::Generic(
-							"expected IpRange as JSON, got null".into(),
-						)),
-					})?;
-				debug!("pool={:?}", pool);
+		let selected_pool = pools.first().cloned().ok_or(AppError::MissingResource {
+			remote: "prevResult",
+			resource: "pool",
+			path: "pools[0]".into(),
+		})?;
+		let pool_name = selected_pool.name;
+		debug!(
+			"pool name={} requested-ip={:?}",
+			pool_name, selected_pool.requested_ip
+		);
 
-				// let pool_known = fetch and parse {consul_url}/v1/kv/ipam/{pool_name}/?recurse
-				let mut pool_url = consul_url.join(&format!("v1/kv/ipam/{}/", pool_name))?;
-				pool_url.set_query(Some("recurse"));
-				let pool_known: Vec<ConsulPair<PoolEntry>> = surf::get(pool_url)
-					.recv_json()
-					.await
-					.map_err(|err| AppError::Http {
-						remote: "consul",
-						resource: "ip-pool",
-						err: err.into(),
-					})?;
-				let pool_known: BTreeMap<IpAddr, String> = pool_known
-					.into_iter()
-					.filter(|pair| !pair.value.is_null())
-					.map(|pair| {
-						let key = pair.key.clone(); // for errors
-						pair.parse_value()
-							.map_err(|err| AppError::InvalidResource {
-								remote: "consul",
-								resource: "ip-pool",
-								path: key.clone(),
-								err: Box::new(CniError::Generic(format!(
-									"expected value to be a JSON string; {}",
-									err
-								))),
-							})
-							.and_then(|pair| {
-								pair.key
-									.split('/')
-									.last()
-									.ok_or_else(|| {
-										unreachable!("due to how the key is constructed it will always have at least one segment")
-									})
-									.and_then(|ip| {
-										IpAddr::from_str(ip).map_err(|err| {
-											AppError::InvalidResource {
-												remote: "consul",
-												resource: "ip-pool",
-												path: key.clone(),
-												err: Box::new(CniError::Generic(format!(
-													"expected key to be an IP address; {}",
-													err
-												))),
-											}
-										})
-									})
-									.map(|ip| {
-										(
-											ip,
-											if let ConsulValue::Parsed(v) = pair.value {
-												v.target
-											} else {
-												unreachable!("consul value should be parsed and nulls already filtered")
-											},
-										)
-									})
-							})
-					})
-					.collect::<AppResult<BTreeMap<_, _>>>()?;
-				debug!("pool-known={:?}", pool_known);
+		match command {
+			Command::Add => {
+				let pool = pool_def(&consul_url, &pool_name).await?;
 
 				let (ip, gateway) = if let Some(ip) = selected_pool.requested_ip {
 					debug!("checking whether requested ip fits in the selected pool");
@@ -215,6 +110,8 @@ fn main() {
 					(IpNetwork::new(ip, prefix).unwrap(), gateway)
 				} else {
 					debug!("none requested, picking next ip in pool");
+					let pool_known = pool_known(&consul_url, &pool_name).await?;
+
 					pool.iter()
 						.flat_map(|range| range.iter_free())
 						.filter(|(ip, _)| !pool_known.contains_key(&ip.ip()))
@@ -242,12 +139,7 @@ fn main() {
 						.map_err(CniError::Json)?,
 					)
 					.recv_json()
-					.await
-					.map_err(|err| AppError::Http {
-						remote: "consul",
-						resource: "pool entry",
-						err: err.into(),
-					})?;
+					.await?;
 
 				if success {
 					info!("allocated address {}", ip);
@@ -266,36 +158,32 @@ fn main() {
 					error!("consul write to ipam/{}/{} returned false", pool_name, ip);
 					Err(AppError::ConsulWriteFailed)
 				}
-			});
-
-			match res {
-				Ok(res) => {
-					debug!("success! {:#?}", res);
-					reply(res)
-				}
-				Err(res) => {
-					error!("error: {}", res);
-					reply(res.into_result(cni_version))
-				}
 			}
-		}
-		Cni::Del {
-			container_id,
-			config,
-			..
-		} => {
-			let cni_version = config.cni_version.clone(); // for error
-			info!("ipam-consul serving spec v{} command=Del", cni_version);
+			Command::Del => {
+				if let Some(prev) = prev_result {
+					let pool_known = pool_known(&consul_url, &pool_name).await?;
 
-			let res: AppResult<IpamSuccessReply> = block_on(async move {
-				let ipam = config.ipam.clone().ok_or(CniError::MissingField("ipam"))?;
-				debug!("ipam={:?}", ipam);
+					if prev.ips.is_empty() {
+						info!("no IPs provided in prevResult, going off by the container ID");
+					// filter by target
+					// delete those keys
+					} else {
+						// filter by ips
 
-				let prev_result: Option<IpamSuccessReply> = config
-					.prev_result
-					.map(|p| serde_json::from_value(p).map_err(CniError::Json))
-					.transpose()?;
-				debug!("prevResult={:?}", prev_result);
+						consul::delete_all(
+							&consul_url,
+							prev.ips.iter().map(|ip| {
+								(
+									format!("ipam/{}/{}", pool_name, ip.address.ip()),
+									None, // TODO: fill the index from the pool-known
+								)
+							}),
+						)
+						.await?;
+					}
+				} else {
+					info!("no prevResult, nothing to do");
+				}
 
 				Ok(IpamSuccessReply {
 					cni_version: config.cni_version,
@@ -304,29 +192,161 @@ fn main() {
 					dns: Default::default(),
 					specific: Default::default(),
 				})
-			});
+			}
+			Command::Check => {
+				todo!()
+			}
+			Command::Version => unreachable!(),
+		}
+	});
 
-			match res {
-				Ok(res) => reply(res),
-				Err(res) => {
-					error!("error: {}", res);
-					reply(res.into_result(cni_version))
-				}
+	match res {
+		Ok(res) => {
+			debug!("success! {:#?}", res);
+			reply(res)
+		}
+		Err(res) => {
+			error!("error: {}", res);
+			reply(res.into_result(cni_version))
+		}
+	}
+}
+
+async fn good_server<'u>(list: &'u [Url]) -> AppResult<&'u Url> {
+	let mut last_err = None;
+	for url in list {
+		match surf::get(url.join("v1/kv/ipam")?).await {
+			Ok(res) if res.status().is_success() => {
+				debug!("found good consul server: {}", url);
+				return Ok(url);
+			}
+			Ok(res) => {
+				warn!("bad consul server, trying next. status={}", res.status());
+				last_err = Some(
+					CniError::Generic(format!("error status from consul: {}", res.status())).into(),
+				);
+			}
+			Err(err) => {
+				warn!("unreachable consul server, trying next. err={}", err);
+				last_err = Some(err.into());
 			}
 		}
-		Cni::Check {
-			container_id,
-			config,
-			..
-		} => {}
-		Cni::Version(_) => unreachable!(),
 	}
+
+	if let Some(err) = last_err {
+		Err(err)
+	} else {
+		// LEAK: is on error path so we exit nearly immediately anyway
+		Err(AppError::from(CniError::InvalidField {
+			field: "consul_servers",
+			expected: "list of servers",
+			value: serde_json::to_value(list).map_err(CniError::Json)?,
+		}))
+	}
+}
+
+async fn pool_def(consul_url: &Url, name: &str) -> AppResult<Vec<IpRange>> {
+	let pool_url = consul_url.join(&format!("v1/kv/ipam/{}", name))?;
+	let pool: Vec<ConsulPair<Vec<IpRange>>> = surf::get(pool_url).recv_json().await?;
+
+	let pool = pool
+		.into_iter()
+		.next()
+		.ok_or(AppError::MissingResource {
+			remote: "consul",
+			resource: "pool",
+			path: format!("ipam/{}", name),
+		})?
+		.parsed_value()
+		.map_err(|err| AppError::InvalidResource {
+			remote: "consul",
+			resource: "pool",
+			path: format!("ipam/{}", name),
+			err: Box::new(err),
+		})?
+		.ok_or(AppError::InvalidResource {
+			remote: "consul",
+			resource: "pool",
+			path: format!("ipam/{}", name),
+			err: Box::new(CniError::Generic(
+				"expected IpRange as JSON, got null".into(),
+			)),
+		})?;
+
+	debug!("pool={:?}", pool);
+	Ok(pool)
+}
+
+async fn pool_known(consul_url: &Url, name: &str) -> AppResult<BTreeMap<IpAddr, KnownPoolEntry>> {
+	let mut url = consul_url.join(&format!("v1/kv/ipam/{}/", name))?;
+	url.set_query(Some("recurse"));
+	let known: Vec<ConsulPair<PoolEntry>> = surf::get(url).recv_json().await?;
+	let known: BTreeMap<IpAddr, KnownPoolEntry> =
+		known
+			.into_iter()
+			.filter(|pair| !pair.value.is_null())
+			.map(|pair| {
+				let key = pair.key.clone(); // for errors
+				pair.parse_value()
+					.map_err(|err| AppError::InvalidResource {
+						remote: "consul",
+						resource: "ip-pool",
+						path: key.clone(),
+						err: Box::new(CniError::Generic(format!(
+							"expected value to be a JSON string; {}",
+							err
+						))),
+					})
+					.and_then(|pair| {
+						let index = pair.modify_index;
+						pair.key
+							.split('/')
+							.last()
+							.ok_or_else(|| {
+								unreachable!("due to how the key is constructed it will always have at least one segment")
+							})
+							.and_then(|ip| {
+								IpAddr::from_str(ip).map_err(|err| AppError::InvalidResource {
+									remote: "consul",
+									resource: "ip-pool",
+									path: key.clone(),
+									err: Box::new(CniError::Generic(format!(
+										"expected key to be an IP address; {}",
+										err
+									))),
+								})
+							})
+							.map(|ip| {
+								(
+									ip,
+									if let ConsulValue::Parsed(v) = pair.value {
+										KnownPoolEntry {
+											target: v.target,
+											index,
+										}
+									} else {
+										unreachable!("consul value should be parsed and nulls already filtered")
+									},
+								)
+							})
+					})
+			})
+			.collect::<AppResult<BTreeMap<_, _>>>()?;
+
+	debug!("pool-known={:?}", known);
+	Ok(known)
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct PoolEntry {
 	pub target: String,
+}
+
+#[derive(Clone, Debug)]
+struct KnownPoolEntry {
+	pub target: String,
+	pub index: usize,
 }
 
 #[derive(Clone, Debug, Deserialize)]

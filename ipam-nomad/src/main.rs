@@ -35,7 +35,10 @@ fn main() {
 			..
 		} => {
 			let cni_version = config.cni_version.clone(); // for error
-			info!("ipam-ds-consul serving spec v{} for command=any", cni_version);
+			info!(
+				"ipam-ds-consul serving spec v{} for command=any",
+				cni_version
+			);
 
 			let res: AppResult<IpamSuccessReply> = block_on(async move {
 				let alloc_id = if container_id.starts_with("cnitool-") {
