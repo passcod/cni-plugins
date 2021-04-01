@@ -160,30 +160,21 @@ fn main() {
 				}
 			}
 			Command::Del => {
-				if let Some(prev) = prev_result {
-					let pool_known = pool_known(&consul_url, &pool_name).await?;
-
-					if prev.ips.is_empty() {
-						info!("no IPs provided in prevResult, going off by the container ID");
-					// filter by target
-					// delete those keys
+				debug!(
+					"finding all known IPs in pool={} with target={}",
+					pool_name, container_id
+				);
+				let pool_known = pool_known(&consul_url, &pool_name).await?;
+				let rip = pool_known.into_iter().filter_map(|(ip, entry)| {
+					if entry.target == container_id {
+						Some((format!("ipam/{}/{}", pool_name, ip), entry.index))
 					} else {
-						// filter by ips
-
-						consul::delete_all(
-							&consul_url,
-							prev.ips.iter().map(|ip| {
-								(
-									format!("ipam/{}/{}", pool_name, ip.address.ip()),
-									None, // TODO: fill the index from the pool-known
-								)
-							}),
-						)
-						.await?;
+						None
 					}
-				} else {
-					info!("no prevResult, nothing to do");
-				}
+				});
+
+				// TODO: do we actually want a transaction? should we best-effort delete instead?
+				consul::delete_all(&consul_url, rip).await?;
 
 				Ok(IpamSuccessReply {
 					cni_version: config.cni_version,

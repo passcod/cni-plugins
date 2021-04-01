@@ -1,4 +1,5 @@
 use cni_plugin::error::CniError;
+use log::debug;
 use serde::{de::DeserializeOwned, Deserialize, Deserializer, Serialize};
 use surf::Url;
 use thiserror::Error;
@@ -74,7 +75,7 @@ impl<T: DeserializeOwned> ConsulPair<T> {
 
 pub async fn delete_all(
 	consul_url: &Url,
-	keys: impl Iterator<Item = (String, Option<usize>)>,
+	keys: impl Iterator<Item = (String, usize)>,
 ) -> AppResult<()> {
 	#[derive(Clone, Debug, Serialize)]
 	enum TxnAction {
@@ -87,24 +88,20 @@ pub async fn delete_all(
 	struct TxnKv {
 		verb: &'static str,
 		key: String,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		index: Option<usize>,
+		index: usize,
 	}
 
 	let actions = keys
 		.map(|(key, index)| {
 			TxnAction::Kv(TxnKv {
-				verb: if index.is_some() {
-					"delete-cas"
-				} else {
-					"delete"
-				},
+				verb: "delete-cas",
 				key,
 				index,
 			})
 		})
 		.collect::<Vec<_>>();
 
+	debug!("going to delete {} entries", actions.len());
 	let txn_url = consul_url.join("v1/txn")?;
 	let res = surf::put(txn_url)
 		.body(serde_json::to_value(actions).map_err(CniError::Json)?)
