@@ -1,6 +1,7 @@
 use std::{collections::HashMap, io::stdout, net::IpAddr, path::PathBuf, process::exit};
 
 use ipnetwork::IpNetwork;
+use log::debug;
 use macaddr::MacAddr6;
 use semver::Version;
 use serde::{Deserialize, Serialize};
@@ -121,6 +122,7 @@ pub fn reply<'de, T>(result: T) -> !
 where
 	T: ReplyPayload<'de>,
 {
+	debug!("replying with {:#?}", result);
 	serde_json::to_writer(stdout(), &result)
 		.expect("Error writing result to stdout... chances are you won't get this either");
 

@@ -18,6 +18,7 @@ mod consul;
 mod error;
 
 fn main() {
+	cni_plugin::install_logger("ipam-consul.log");
 	match Cni::load() {
 		Cni::Add {
 			container_id,

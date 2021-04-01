@@ -5,9 +5,11 @@ use cni_plugin::{
 	reply::{reply, IpamSuccessReply},
 	Cni, Command,
 };
+use log::{debug, error, info};
 use serde_json::{from_value, to_value};
 
 fn main() {
+	cni_plugin::install_logger("ipam-delegated.log");
 	let cni = Cni::load();
 
 	let (command, config) = match cni {
@@ -17,6 +19,7 @@ fn main() {
 		Cni::Version(_) => unreachable!(),
 	};
 	let cni_version = config.cni_version.clone(); // for error
+	info!("ipam-delegated serving spec v{} command={:?}", cni_version, command);
 
 	let res: Result<IpamSuccessReply, CniError> = block_on(async move {
 		let delegated_plugins = config
@@ -31,11 +34,12 @@ fn main() {
 				Ok(v)
 			})?;
 
+		debug!("delegated plugin list: {:?}", delegated_plugins);
 		if delegated_plugins.is_empty() {
 			return Err(CniError::InvalidField {
 				field: "ipam.delegates",
 				expected: "at least one plugin",
-				value: "none".into(),
+				value: Vec::<()>::new().into(),
 			});
 		}
 
@@ -116,8 +120,14 @@ fn main() {
 	});
 
 	match res {
-		Ok(res) => reply(res),
-		Err(res) => reply(res.into_result(cni_version)),
+		Ok(res) => {
+			debug!("success! {:#?}", res);
+			reply(res)
+		},
+		Err(res) => {
+			error!("error: {}", res);
+			reply(res.into_result(cni_version))
+		},
 	}
 }
 

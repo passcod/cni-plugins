@@ -5,6 +5,7 @@ use std::{
 	process::{ExitStatus, Stdio},
 };
 
+use log::{debug, error, info};
 use which::which_in;
 
 use crate::{config::NetworkConfig, error::CniError, reply::ReplyPayload, Command};
@@ -38,6 +39,7 @@ where
 
 	match delegate_command(&plugin, command, &config_bytes).await {
 		Ok((status, stdout)) => {
+
 			if stdout.is_empty() {
 				if matches!(command, Command::Add) {
 					delegate_command(&plugin, Command::Del, &config_bytes)
@@ -79,6 +81,7 @@ where
 			}
 		}
 		Err(err) => {
+			error!("error running delegate: {}", err);
 			if matches!(command, Command::Add) {
 				// We're already failing pretty badly so this is a Just In Case, but
 				// in all likelihood won't work either. So we ignore any failure.
@@ -107,6 +110,9 @@ async fn delegate_command(
 	let plugin = plugin.as_ref();
 	let command = command.as_ref();
 
+	info!("delegating to plugin at {} for command={}", plugin.display(), command);
+
+	debug!("spawing child process, async=smol");
 	let mut child = Command::new(plugin)
 		.env("CNI_COMMAND", command)
 		.stdin(Stdio::piped())
@@ -114,14 +120,26 @@ async fn delegate_command(
 		.stderr(Stdio::inherit())
 		.spawn()?;
 
-	// UNWRAP: stdin configured above
-	let mut stdin = child.stdin.take().unwrap();
-	let bytes = Cursor::new(stdin_bytes);
-	let written = copy(bytes, &mut stdin).await?;
-	stdin.close().await?;
-	assert_eq!(written as usize, stdin_bytes.len());
+	{
+		debug!("taking child stdin");
+		let mut stdin = child.stdin.take().unwrap();
+		// UNWRAP: stdin configured above
 
+		debug!("copying bytes={} to stdin", stdin_bytes.len());
+		let bytes = Cursor::new(stdin_bytes);
+		let written = copy(bytes, &mut stdin).await?;
+
+		debug!("closing stdin");
+		stdin.close().await?;
+
+		assert_eq!(written as usize, stdin_bytes.len());
+		debug!("dropping stdin handle");
+	}
+
+	debug!("awaiting child");
 	let output = child.output().await?;
+
+	info!("delegate plugin at {} for command={} has returned status={} stdout bytes={}", plugin.display(), command, output.status, output.stdout.len());
 	Ok((output.status, output.stdout))
 }
 
@@ -137,6 +155,9 @@ async fn delegate_command(
 	let plugin = plugin.as_ref();
 	let command = command.as_ref();
 
+	info!("delegating to plugin at {} for command={}", plugin.display(), command);
+
+	debug!("spawing child process, async=tokio");
 	let mut child = Command::new(plugin)
 		.env("CNI_COMMAND", command)
 		.stdin(Stdio::piped())
@@ -144,11 +165,21 @@ async fn delegate_command(
 		.stderr(Stdio::inherit())
 		.spawn()?;
 
-	// UNWRAP: stdin configured above
-	let mut stdin = child.stdin.take().unwrap();
-	let written = copy_buf(&mut stdin_bytes, &mut stdin).await?;
-	assert_eq!(written as usize, stdin_bytes.len());
+	{
+		debug!("taking child stdin");
+		let mut stdin = child.stdin.take().unwrap();
+		// UNWRAP: stdin configured above
 
+		debug!("copying bytes={} to stdin", stdin_bytes.len());
+		let written = copy_buf(&mut stdin_bytes, &mut stdin).await?;
+		assert_eq!(written as usize, stdin_bytes.len());
+
+		debug!("dropping stdin handle");
+	}
+
+	debug!("awaiting child");
 	let output = child.wait_with_output().await?;
+
+	info!("delegate plugin at {} for command={} has returned status={} stdout bytes={}", plugin.display(), command, output.status, output.stdout.len());
 	Ok((output.status, output.stdout))
 }

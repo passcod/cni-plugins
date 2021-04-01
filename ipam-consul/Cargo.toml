@@ -5,7 +5,7 @@ authors = ["Félix Saparelli <felix@passcod.name>"]
 edition = "2018"
 
 [[bin]]
-name = "ipam-d-consul"
+name = "ipam-da-consul"
 path = "src/main.rs"
 
 [dependencies]

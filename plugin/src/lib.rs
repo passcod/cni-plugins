@@ -1,11 +1,6 @@
-use std::{
-	collections::HashSet,
-	env,
-	io::{stdin, Read},
-	path::PathBuf,
-	str::FromStr,
-};
+use std::{collections::HashSet, env, fs::{OpenOptions}, io::{stdin, Read}, path::{Path, PathBuf}, str::FromStr};
 
+use log::{debug, error};
 use regex::Regex;
 use semver::{Version, VersionReq};
 use thiserror::Error;
@@ -107,6 +102,7 @@ impl Cni {
 			env::var(var)
 				.map_err(|err| CniError::MissingEnv { var, err })
 				.and_then(|val| {
+					debug!("read env var {} = {:?}", var, val);
 					val.parse().map_err(|err| CniError::InvalidEnv {
 						var,
 						err: Box::new(err),
@@ -131,7 +127,9 @@ impl Cni {
 		let path = path.0;
 
 		let mut payload = Vec::with_capacity(1024);
+		debug!("reading stdin til EOF...");
 		stdin().read_to_end(&mut payload)?;
+		debug!("read payload bytes={}", payload.len());
 		if payload.is_empty() {
 			return Err(CniError::MissingInput);
 		}
@@ -212,7 +210,10 @@ impl Cni {
 		let cni_version = Version::parse("1.0.0").unwrap();
 
 		match Self::from_env() {
-			Err(e) => reply(e.into_result(cni_version)),
+			Err(e) => {
+				error!("{}", e);
+				reply(e.into_result(cni_version))
+			},
 			Ok(Cni::Version(v)) => {
 				let mut supported_versions = SUPPORTED_VERSIONS
 					.iter()
@@ -249,4 +250,18 @@ impl Cni {
 	// maybe also with something that searches in common locations
 
 	// TODO: integrate with which (crate) to search the CNI_PATH
+}
+
+pub fn install_logger(logfile: impl AsRef<Path>) {
+	use simplelog::*;
+
+	let mut loggers: Vec<Box<dyn SharedLogger>> = vec![
+		TermLogger::new(LevelFilter::Warn, Default::default(), TerminalMode::Stderr, ColorChoice::Never)
+	];
+
+	if cfg!(any(debug_assertions, feature = "release-logs")) {
+		loggers.push(WriteLogger::new(LevelFilter::Debug, Default::default(), OpenOptions::new().append(true).create(true).open(logfile).unwrap()));
+	}
+
+	CombinedLogger::init(loggers).unwrap();
 }

@@ -5,7 +5,7 @@ authors = ["Félix Saparelli <felix@passcod.name>"]
 edition = "2018"
 
 [[bin]]
-name = "ipam-d-nomad"
+name = "ipam-ds-nomad"
 path = "src/main.rs"
 
 [dependencies]
@@ -18,3 +18,4 @@ surf = "2.2.0"
 base64 = "0.13.0"
 thiserror = "1.0.24"
 semver = "0.11.0"
+url = "2.2.1"

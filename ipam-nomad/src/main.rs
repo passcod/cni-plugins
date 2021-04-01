@@ -8,6 +8,7 @@ use cni_plugin::{
 };
 use serde::Serialize;
 use serde_json::Value;
+use url::Url;
 
 use crate::error::{AppError, AppResult};
 use crate::nomad::Alloc;
@@ -16,6 +17,7 @@ mod error;
 mod nomad;
 
 fn main() {
+	cni_plugin::install_logger("ipam-nomad.log");
 	match Cni::load() {
 		Cni::Add {
 			container_id,
@@ -42,36 +44,36 @@ fn main() {
 
 				let ipam = config.ipam.clone().ok_or(CniError::MissingField("ipam"))?;
 
-				let get_config = |name: &'static str| -> Result<&Value, CniError> {
-					ipam.specific
-						.get(name)
-						.ok_or(CniError::MissingField("ipam"))
-				};
-
-				let config_string = |name: &'static str| -> Result<String, CniError> {
-					get_config(name).and_then(|v| {
-						if let Value::String(s) = v {
-							Ok(s.to_owned())
-						} else {
-							Err(CniError::InvalidField {
-								field: name,
-								expected: "string",
-								value: v.clone(),
-							})
-						}
-					})
-				};
-
-				let nomad_url = config_string("nomad_url")?;
-
-				let alloc: Alloc = surf::get(format!("{}/v1/allocation/{}", nomad_url, alloc_id))
-					.recv_json()
-					.await
-					.map_err(|err| AppError::Fetch {
-						remote: "nomad",
-						resource: "allocation",
-						err: err.into(),
+				let mut nomad_servers = ipam
+					.specific
+					.get("nomad_servers")
+					.ok_or(CniError::MissingField("ipam.nomad_servers"))
+					.and_then(|v| -> Result<Vec<Url>, _> {
+						serde_json::from_value(v.to_owned()).map_err(CniError::Json)
 					})?;
+
+				let mut nomad_url = nomad_servers
+					.pop()
+					.ok_or(CniError::MissingField("ipam.nomad_servers"))?;
+				let alloc: Alloc = loop {
+					match surf::get(nomad_url.join("v1/allocation/")?.join(&alloc_id)?)
+						.recv_json()
+						.await
+						.map_err(|err| AppError::Fetch {
+							remote: "nomad",
+							resource: "allocation",
+							err: err.into(),
+						}) {
+						Ok(res) => break res,
+						Err(err) => {
+							if let Some(url) = nomad_servers.pop() {
+								nomad_url = url;
+							} else {
+								return Err(err);
+							}
+						}
+					}
+				};
 
 				let group = alloc.job.task_groups.iter().find(|g| g.name == alloc.task_group).ok_or(AppError::InvalidResource {
 					remote: "nomad",
