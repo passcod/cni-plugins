@@ -4,14 +4,13 @@ use async_std::task::block_on;
 use cni_plugin::{
 	error::CniError,
 	ip_range::IpRange,
-	reply::{reply, IpamSuccessReply},
+	reply::{reply, IpReply, IpamSuccessReply},
 	Cni,
 };
 use consul::ConsulValue;
 use ipnetwork::IpNetwork;
 use log::{debug, error, info, warn};
-use serde::Deserialize;
-use serde_json::Value;
+use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::consul::ConsulPair;
@@ -34,23 +33,6 @@ fn main() {
 			let res: AppResult<IpamSuccessReply> = block_on(async move {
 				let ipam = config.ipam.clone().ok_or(CniError::MissingField("ipam"))?;
 				debug!("ipam={:?}", ipam);
-
-				let config_string = |name: &'static str| -> Result<String, CniError> {
-					ipam.specific
-						.get(name)
-						.ok_or(CniError::MissingField(name))
-						.and_then(|v| {
-							if let Value::String(s) = v {
-								Ok(s.to_owned())
-							} else {
-								Err(CniError::InvalidField {
-									field: name,
-									expected: "string",
-									value: v.clone(),
-								})
-							}
-						})
-				};
 
 				let prev_result: Option<IpamSuccessReply> = config
 					.prev_result
@@ -103,7 +85,7 @@ fn main() {
 					match surf::get(consul_url.join("v1/kv/ipam/")?.join(&pool_name)?)
 						.recv_json()
 						.await
-						.map_err(|err| AppError::Fetch {
+						.map_err(|err| AppError::Http {
 							remote: "consul",
 							resource: "pool name",
 							err: err.into(),
@@ -152,18 +134,16 @@ fn main() {
 				debug!("pool={:?}", pool);
 
 				// let pool_known = fetch and parse {consul_url}/v1/kv/ipam/{pool_name}/?recurse
-				let pool_known: Vec<ConsulPair<PoolEntry>> = surf::get(
-					consul_url
-						.join("v1/kv/ipam/")?
-						.join(&format!("{}/?recurse", pool_name))?,
-				)
-				.recv_json()
-				.await
-				.map_err(|err| AppError::Fetch {
-					remote: "consul",
-					resource: "ip-pool",
-					err: err.into(),
-				})?;
+				let mut pool_url = consul_url.join("v1/kv/ipam/")?.join(&pool_name)?;
+				pool_url.set_query(Some("recurse"));
+				let pool_known: Vec<ConsulPair<PoolEntry>> = surf::get(pool_url)
+					.recv_json()
+					.await
+					.map_err(|err| AppError::Http {
+						remote: "consul",
+						resource: "ip-pool",
+						err: err.into(),
+					})?;
 				let pool_known: BTreeMap<IpAddr, String> = pool_known
 					.into_iter()
 					.filter(|pair| !pair.value.is_null())
@@ -214,39 +194,78 @@ fn main() {
 					.collect::<AppResult<BTreeMap<_, _>>>()?;
 				debug!("pool-known={:?}", pool_known);
 
-				let ip = if let Some(ip) = selected_pool.requested_ip {
+				let (ip, gateway) = if let Some(ip) = selected_pool.requested_ip {
 					debug!("checking whether requested ip fits in the selected pool");
 
 					let mut prefix = None;
+					let mut gateway = None;
 					for range in &pool {
 						if range.subnet.contains(ip) {
 							prefix = Some(range.subnet.prefix());
+							gateway = range.gateway;
 						}
 					}
 
 					let prefix = prefix.ok_or(AppError::NotInPool {
-						pool: pool_name,
+						pool: pool_name.clone(),
 						ip,
 					})?;
 
 					// UNWRAP: panics on invalid prefix, but prefix comes from existing IpNetwork
-					IpNetwork::new(ip, prefix).unwrap()
+					(IpNetwork::new(ip, prefix).unwrap(), gateway)
 				} else {
 					debug!("none requested, picking next ip in pool");
 					pool.iter()
 						.flat_map(|range| range.iter_free())
-						.filter(|ip| !pool_known.contains_key(&ip.ip()))
+						.filter(|(ip, _)| !pool_known.contains_key(&ip.ip()))
 						.next()
-						.ok_or(AppError::PoolFull(pool_name))?
+						.map(|(ip, range)| (ip, range.gateway.clone()))
+						.ok_or(AppError::PoolFull(pool_name.clone()))?
 				};
 
 				debug!("ip={:?}", ip);
 
 				// assign the container_id to the ip (if new/random ip, use cas=0)
+				let mut assign_url =
+					consul_url.join(&format!("v1/kv/ipam/{}/{}", pool_name, ip))?;
 
-				// return ipam result
+				if selected_pool.requested_ip.is_none() {
+					debug!("creating address"); // cas=0 ensures that it will fail if it's an update
+					assign_url.query_pairs_mut().append_pair("cas", "0");
+				}
 
-				Err(CniError::Generic("TBC".into()).into())
+				let success: bool = surf::put(assign_url)
+					.body(
+						serde_json::to_value(PoolEntry {
+							target: container_id,
+						})
+						.map_err(CniError::Json)?,
+					)
+					.recv_json()
+					.await
+					.map_err(|err| AppError::Http {
+						remote: "consul",
+						resource: "pool entry",
+						err: err.into(),
+					})?;
+
+				if success {
+					info!("allocated address {}", ip);
+					Ok(IpamSuccessReply {
+						cni_version: config.cni_version,
+						ips: vec![IpReply {
+							address: ip,
+							gateway,
+							interface: None,
+						}],
+						routes: Vec::new(),
+						dns: Default::default(),
+						specific: Default::default(),
+					})
+				} else {
+					error!("consul write to ipam/{}/{} returned false", pool_name, ip);
+					Err(AppError::ConsulWriteFailed)
+				}
 			});
 
 			match res {
@@ -304,7 +323,7 @@ fn main() {
 	}
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct PoolEntry {
 	pub target: String,

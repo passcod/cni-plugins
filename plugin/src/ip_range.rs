@@ -17,7 +17,7 @@ pub struct IpRange {
 }
 
 impl IpRange {
-	pub fn iter_free(&self) -> impl Iterator<Item = IpNetwork> {
+	pub fn iter_free(&self) -> impl Iterator<Item = (IpNetwork, &Self)> {
 		let prefix = self.subnet.prefix();
 		let range_start = self.range_start;
 		let range_end = self.range_end;
@@ -41,7 +41,7 @@ impl IpRange {
 
 				true
 			})
-			.map(move |ip| IpNetwork::new(ip, prefix).unwrap())
+			.map(move |ip| (IpNetwork::new(ip, prefix).unwrap(), self))
 		// UNWRAP: panics on invalid prefix, but we got it from another IpNetwork
 	}
 }

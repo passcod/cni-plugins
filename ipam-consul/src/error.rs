@@ -15,7 +15,7 @@ pub enum AppError {
 	Url(#[from] url::ParseError),
 
 	#[error("{remote}::{resource}: {err}")]
-	Fetch {
+	Http {
 		remote: &'static str,
 		resource: &'static str,
 		#[source]
@@ -43,6 +43,9 @@ pub enum AppError {
 
 	#[error("{pool} cannot contain {ip}")]
 	NotInPool { pool: String, ip: IpAddr },
+
+	#[error("consul write failed")]
+	ConsulWriteFailed,
 }
 
 impl AppError {
@@ -55,7 +58,7 @@ impl AppError {
 				msg: "Error constructing URL",
 				details: e.to_string(),
 			},
-			e @ AppError::Fetch { .. } => ErrorReply {
+			e @ AppError::Http { .. } => ErrorReply {
 				cni_version,
 				code: 111,
 				msg: "Error fetching resource",
@@ -83,6 +86,12 @@ impl AppError {
 				cni_version,
 				code: 124,
 				msg: "IP not in pool",
+				details: e.to_string(),
+			},
+			e @ AppError::ConsulWriteFailed => ErrorReply {
+				cni_version,
+				code: 125,
+				msg: "KV PUT",
 				details: e.to_string(),
 			},
 		}
