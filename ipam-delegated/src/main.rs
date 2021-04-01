@@ -19,7 +19,10 @@ fn main() {
 		Cni::Version(_) => unreachable!(),
 	};
 	let cni_version = config.cni_version.clone(); // for error
-	info!("ipam-delegated serving spec v{} command={:?}", cni_version, command);
+	info!(
+		"ipam-delegated serving spec v{} command={:?}",
+		cni_version, command
+	);
 
 	let res: Result<IpamSuccessReply, CniError> = block_on(async move {
 		let delegated_plugins = config
@@ -124,7 +127,7 @@ fn main() {
 		Err(res) => {
 			error!("error: {}", res);
 			reply(res.into_result(cni_version))
-		},
+		}
 	}
 }
 

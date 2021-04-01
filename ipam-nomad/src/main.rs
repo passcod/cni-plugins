@@ -6,7 +6,7 @@ use cni_plugin::{
 	reply::{reply, DnsReply, IpamSuccessReply},
 	Cni,
 };
-use log::{debug, info, error, warn};
+use log::{debug, error, info, warn};
 use serde::Serialize;
 use url::Url;
 
@@ -54,7 +54,14 @@ fn main() {
 					.and_then(|v| -> Result<Vec<Url>, _> {
 						serde_json::from_value(v.to_owned()).map_err(CniError::Json)
 					})?;
-				debug!("nomad-servers={}", nomad_servers.iter().map(ToString::to_string).collect::<Vec<String>>().join(","));
+				debug!(
+					"nomad-servers={}",
+					nomad_servers
+						.iter()
+						.map(ToString::to_string)
+						.collect::<Vec<String>>()
+						.join(",")
+				);
 
 				nomad_servers.reverse();
 				let mut nomad_url = nomad_servers
@@ -72,7 +79,7 @@ fn main() {
 						Ok(res) => {
 							debug!("found good nomad server: {}", nomad_url);
 							break res;
-						},
+						}
 						Err(err) => {
 							if let Some(url) = nomad_servers.pop() {
 								warn!("bad nomad server, trying next. err={}", err);
@@ -118,19 +125,14 @@ fn main() {
 				info!("pool-name={}", name);
 
 				debug!("reading requested ip");
-				let requested_ip = group
-					.meta
-					.network_ip;
+				let requested_ip = group.meta.network_ip;
 				info!("requested-ip={:?}", requested_ip);
 
 				let mut specific = HashMap::new();
 				specific.insert(
 					"pools".into(),
-					serde_json::to_value(&vec![Pool {
-						name,
-						requested_ip,
-					}])
-					.map_err(CniError::Json)?,
+					serde_json::to_value(&vec![Pool { name, requested_ip }])
+						.map_err(CniError::Json)?,
 				);
 
 				Ok(IpamSuccessReply {
@@ -149,7 +151,7 @@ fn main() {
 				Err(res) => {
 					error!("error: {}", res);
 					reply(res.into_result(cni_version))
-				},
+				}
 			}
 		}
 		Cni::Version(_) => unreachable!(),

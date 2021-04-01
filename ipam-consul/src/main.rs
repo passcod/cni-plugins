@@ -8,7 +8,7 @@ use cni_plugin::{
 	Cni,
 };
 use consul::ConsulValue;
-use log::{debug, info, error, warn};
+use log::{debug, error, info, warn};
 use serde::Deserialize;
 use serde_json::Value;
 use url::Url;
@@ -39,16 +39,16 @@ fn main() {
 						.get(name)
 						.ok_or(CniError::MissingField(name))
 						.and_then(|v| {
-						if let Value::String(s) = v {
-							Ok(s.to_owned())
-						} else {
-							Err(CniError::InvalidField {
-								field: name,
-								expected: "string",
-								value: v.clone(),
-							})
-						}
-					})
+							if let Value::String(s) = v {
+								Ok(s.to_owned())
+							} else {
+								Err(CniError::InvalidField {
+									field: name,
+									expected: "string",
+									value: v.clone(),
+								})
+							}
+						})
 				};
 
 				let prev_result: Option<IpamSuccessReply> = config
@@ -82,7 +82,14 @@ fn main() {
 					.and_then(|v| -> Result<Vec<Url>, _> {
 						serde_json::from_value(v.to_owned()).map_err(CniError::Json)
 					})?;
-				debug!("consul-servers={}", consul_servers.iter().map(ToString::to_string).collect::<Vec<String>>().join(","));
+				debug!(
+					"consul-servers={}",
+					consul_servers
+						.iter()
+						.map(ToString::to_string)
+						.collect::<Vec<String>>()
+						.join(",")
+				);
 
 				consul_servers.reverse();
 				let mut consul_url = consul_servers
@@ -90,19 +97,18 @@ fn main() {
 					.ok_or(CniError::MissingField("ipam.consul_servers"))?;
 
 				let keys: Vec<ConsulPair<Vec<IpRange>>> = loop {
-					match surf::get(
-						consul_url.join("v1/kv/ipam/")?.join(&pool_name)?)
-					.recv_json()
-					.await
-					.map_err(|err| AppError::Fetch {
-						remote: "consul",
-						resource: "pool name",
-						err: err.into(),
-					}) {
+					match surf::get(consul_url.join("v1/kv/ipam/")?.join(&pool_name)?)
+						.recv_json()
+						.await
+						.map_err(|err| AppError::Fetch {
+							remote: "consul",
+							resource: "pool name",
+							err: err.into(),
+						}) {
 						Ok(res) => {
 							debug!("found good consul server: {}", consul_url);
 							break res;
-						},
+						}
 						Err(err) => {
 							if let Some(url) = consul_servers.pop() {
 								warn!("bad consul server, trying next. err={}", err);
@@ -117,7 +123,8 @@ fn main() {
 				// lookup defined pool in consul kv at ipam/<pool name>/
 				// error if not found
 				// parse as JSON Vec<cni::IpRange>
-				let pool = keys.into_iter()
+				let pool = keys
+					.into_iter()
 					.next()
 					.ok_or(AppError::MissingResource {
 						remote: "consul",
@@ -154,15 +161,18 @@ fn main() {
 				// }
 
 				// let pool_known = fetch and parse {consul_url}/v1/kv/ipam/{pool_name}/?recurse
-				let pool_known: Vec<ConsulPair<PoolEntry>> =
-					surf::get(consul_url.join("v1/kv/ipam/")?.join(&format!("{}/?recurse", pool_name))?)
-						.recv_json()
-						.await
-						.map_err(|err| AppError::Fetch {
-							remote: "consul",
-							resource: "ip-pool",
-							err: err.into(),
-						})?;
+				let pool_known: Vec<ConsulPair<PoolEntry>> = surf::get(
+					consul_url
+						.join("v1/kv/ipam/")?
+						.join(&format!("{}/?recurse", pool_name))?,
+				)
+				.recv_json()
+				.await
+				.map_err(|err| AppError::Fetch {
+					remote: "consul",
+					resource: "ip-pool",
+					err: err.into(),
+				})?;
 				let pool_known: BTreeMap<IpAddr, String> = pool_known
 					.into_iter()
 					.filter(|pair| !pair.value.is_null())
@@ -234,11 +244,11 @@ fn main() {
 				Ok(res) => {
 					debug!("success! {:#?}", res);
 					reply(res)
-				},
+				}
 				Err(res) => {
 					error!("error: {}", res);
 					reply(res.into_result(cni_version))
-				},
+				}
 			}
 		}
 		Cni::Del {
@@ -260,11 +270,11 @@ fn main() {
 				debug!("prevResult={:?}", prev_result);
 
 				Ok(IpamSuccessReply {
-				    cni_version: config.cni_version,
-				    ips: Vec::new(),
-				    routes: Vec::new(),
-				    dns: Default::default(),
-				    specific: Default::default(),
+					cni_version: config.cni_version,
+					ips: Vec::new(),
+					routes: Vec::new(),
+					dns: Default::default(),
+					specific: Default::default(),
 				})
 			});
 
@@ -273,7 +283,7 @@ fn main() {
 				Err(res) => {
 					error!("error: {}", res);
 					reply(res.into_result(cni_version))
-				},
+				}
 			}
 		}
 		Cni::Check {

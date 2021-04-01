@@ -39,7 +39,6 @@ where
 
 	match delegate_command(&plugin, command, &config_bytes).await {
 		Ok((status, stdout)) => {
-
 			if stdout.is_empty() {
 				if matches!(command, Command::Add) {
 					delegate_command(&plugin, Command::Del, &config_bytes)
@@ -110,7 +109,11 @@ async fn delegate_command(
 	let plugin = plugin.as_ref();
 	let command = command.as_ref();
 
-	info!("delegating to plugin at {} for command={}", plugin.display(), command);
+	info!(
+		"delegating to plugin at {} for command={}",
+		plugin.display(),
+		command
+	);
 
 	debug!("spawing child process, async=smol");
 	let mut child = Command::new(plugin)
@@ -139,7 +142,13 @@ async fn delegate_command(
 	debug!("awaiting child");
 	let output = child.output().await?;
 
-	info!("delegate plugin at {} for command={} has returned with {}; stdout bytes={}", plugin.display(), command, output.status, output.stdout.len());
+	info!(
+		"delegate plugin at {} for command={} has returned with {}; stdout bytes={}",
+		plugin.display(),
+		command,
+		output.status,
+		output.stdout.len()
+	);
 	Ok((output.status, output.stdout))
 }
 
@@ -155,7 +164,11 @@ async fn delegate_command(
 	let plugin = plugin.as_ref();
 	let command = command.as_ref();
 
-	info!("delegating to plugin at {} for command={}", plugin.display(), command);
+	info!(
+		"delegating to plugin at {} for command={}",
+		plugin.display(),
+		command
+	);
 
 	debug!("spawing child process, async=tokio");
 	let mut child = Command::new(plugin)
@@ -180,6 +193,12 @@ async fn delegate_command(
 	debug!("awaiting child");
 	let output = child.wait_with_output().await?;
 
-	info!("delegate plugin at {} for command={} has returned with {}; stdout bytes={}", plugin.display(), command, output.status, output.stdout.len());
+	info!(
+		"delegate plugin at {} for command={} has returned with {}; stdout bytes={}",
+		plugin.display(),
+		command,
+		output.status,
+		output.stdout.len()
+	);
 	Ok((output.status, output.stdout))
 }

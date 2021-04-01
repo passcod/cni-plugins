@@ -1,4 +1,11 @@
-use std::{collections::HashSet, env, fs::{OpenOptions}, io::{stdin, Read}, path::{Path, PathBuf}, str::FromStr};
+use std::{
+	collections::HashSet,
+	env,
+	fs::OpenOptions,
+	io::{stdin, Read},
+	path::{Path, PathBuf},
+	str::FromStr,
+};
 
 use log::{debug, error};
 use regex::Regex;
@@ -213,7 +220,7 @@ impl Cni {
 			Err(e) => {
 				error!("{}", e);
 				reply(e.into_result(cni_version))
-			},
+			}
 			Ok(Cni::Version(v)) => {
 				let mut supported_versions = SUPPORTED_VERSIONS
 					.iter()
@@ -255,12 +262,23 @@ impl Cni {
 pub fn install_logger(logfile: impl AsRef<Path>) {
 	use simplelog::*;
 
-	let mut loggers: Vec<Box<dyn SharedLogger>> = vec![
-		TermLogger::new(LevelFilter::Warn, Default::default(), TerminalMode::Stderr, ColorChoice::Never)
-	];
+	let mut loggers: Vec<Box<dyn SharedLogger>> = vec![TermLogger::new(
+		LevelFilter::Warn,
+		Default::default(),
+		TerminalMode::Stderr,
+		ColorChoice::Never,
+	)];
 
 	if cfg!(any(debug_assertions, feature = "release-logs")) {
-		loggers.push(WriteLogger::new(LevelFilter::Debug, Default::default(), OpenOptions::new().append(true).create(true).open(logfile).unwrap()));
+		loggers.push(WriteLogger::new(
+			LevelFilter::Debug,
+			Default::default(),
+			OpenOptions::new()
+				.append(true)
+				.create(true)
+				.open(logfile)
+				.unwrap(),
+		));
 	}
 
 	CombinedLogger::init(loggers).unwrap();
