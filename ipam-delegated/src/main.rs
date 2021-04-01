@@ -20,7 +20,7 @@ fn main() {
 	};
 	let cni_version = config.cni_version.clone(); // for error
 	info!(
-		"ipam-delegated serving spec v{} command={:?}",
+		"ipam-delegated serving spec v{} for command={:?}",
 		cni_version, command
 	);
 

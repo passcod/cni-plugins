@@ -17,7 +17,7 @@ mod error;
 mod nomad;
 
 fn main() {
-	cni_plugin::install_logger("ipam-nomad.log");
+	cni_plugin::install_logger("ipam-ds-nomad.log");
 	match Cni::load() {
 		Cni::Add {
 			container_id,
@@ -35,11 +35,11 @@ fn main() {
 			..
 		} => {
 			let cni_version = config.cni_version.clone(); // for error
-			info!("ipam-consul serving spec v{} command=any", cni_version);
+			info!("ipam-ds-consul serving spec v{} for command=any", cni_version);
 
 			let res: AppResult<IpamSuccessReply> = block_on(async move {
 				let alloc_id = if container_id.starts_with("cnitool-") {
-					"f66ad535-bf6f-5c24-5611-9b45af038bbe".into() // testing
+					"ae999124-a427-2e89-f763-a8742900854b".into() // testing
 				} else {
 					container_id
 				};
@@ -135,9 +135,20 @@ fn main() {
 						.map_err(CniError::Json)?,
 				);
 
+				let ips = if let Some(prev_ipam) =
+					config
+						.prev_result
+						.and_then(|val| -> Option<IpamSuccessReply> {
+							serde_json::from_value(val).ok()
+						}) {
+					prev_ipam.ips
+				} else {
+					Vec::new()
+				};
+
 				Ok(IpamSuccessReply {
 					cni_version: config.cni_version,
-					ips: Vec::new(),
+					ips,
 					routes: Vec::new(),
 					dns: DnsReply::default(),
 					specific,
