@@ -1,5 +1,5 @@
 # Changelog
 
-## Next (YYYY-MM-DD)
+## Next
 
 Initial release
