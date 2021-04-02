@@ -224,6 +224,8 @@ impl Cni {
 	}
 
 	pub fn load() -> Self {
+		debug!("CNI plugin built with {} crate version {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+
 		let cni_version = Version::parse("1.0.0").unwrap();
 
 		match Self::from_env() {

@@ -26,6 +26,7 @@ mod error;
 
 fn main() {
 	cni_plugin::install_logger("ipam-da-consul.log");
+	debug!("{} (CNI IPAM delegate plugin) version {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 
 	// UNWRAP: None on Version, but Version is handled by load()
 	let Inputs {

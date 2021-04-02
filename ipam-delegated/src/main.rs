@@ -10,6 +10,8 @@ use serde_json::{from_value, to_value};
 
 fn main() {
 	cni_plugin::install_logger("ipam-delegated.log");
+	debug!("{} (CNI IPAM plugin) version {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+
 	let cni = Cni::load();
 
 	let (command, config) = match cni {
@@ -93,10 +95,6 @@ fn main() {
 				let mut last_result = None;
 				let mut errors = Vec::with_capacity(delegated_plugins.len());
 
-				// TODO: doc: Unlike top plugin order, ipam-delegate always runs its
-				// plugins in order, even for the DEL command. This is because it's
-				// expected that first plugins only do information-gathering, which
-				// is still needed when deleting, and the final plugin actions it all.
 				for plugin in delegated_plugins {
 					let result: IpamSuccessReply = match delegate(&plugin, command, &config).await {
 						Ok(reply) => reply,

@@ -8,6 +8,8 @@ use log::{debug, error, info};
 
 fn main() {
 	cni_plugin::install_logger("advertise.log");
+	debug!("{} (CNI post plugin) version {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+
 	let cni = Cni::load();
 
 	let (command, config) = match cni {
