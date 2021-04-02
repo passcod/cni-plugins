@@ -6,46 +6,105 @@ on:
 name: Release
 
 jobs:
-  release:
-    runs-on: ubuntu-latest
+  build:
     strategy:
-      matrix: # TODO: one build per plugin
-        target:
-          - x86_64-unknown-linux-gnu
-          - x86_64-unknown-linux-musl
-          - aarch64-unknown-linux-gnu
-          - aarch64-unknown-linux-musl
-          - armv7-unknown-linux-gnueabihf
-          - armv7-unknown-linux-musleabihf
+      matrix:
+        name:
+          - advertise-linux-amd64-gnu
+          - advertise-linux-amd64-musl
+
+          - ipam-da-consul-linux-amd64-gnu
+          - ipam-da-consul-linux-amd64-musl
+
+          - ipam-ds-nomad-linux-amd64-gnu
+          - ipam-ds-nomad-linux-amd64-musl
+
+          - ipam-delegated-linux-amd64-gnu
+          - ipam-delegated-linux-amd64-musl
+
+        include:
+          - name: advertise-linux-amd64-gnu
+            plugin: advertise
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            cross: false
+
+          - name: advertise-linux-amd64-musl
+            plugin: advertise
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            cross: true
+
+          - name: ipam-delegated-linux-amd64-gnu
+            plugin: ipam-delegated
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            cross: false
+
+          - name: ipam-delegated-linux-amd64-musl
+            plugin: ipam-delegated
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            cross: true
+
+          - name: ipam-da-consul-linux-amd64-gnu
+            plugin: ipam-da-consul
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            cross: false
+
+          - name: ipam-da-consul-linux-amd64-musl
+            plugin: ipam-da-consul
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            cross: true
+
+          - name: ipam-ds-nomad-linux-amd64-gnu
+            plugin: ipam-ds-nomad
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            cross: false
+
+          - name: ipam-ds-nomad-linux-amd64-musl
+            plugin: ipam-ds-nomad
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            cross: true
+
     steps:
       - uses: actions/checkout@v2
+      - uses: actions/cache@v2
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('Cargo.lock') }}
+      - uses: actions/cache@v1
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('Cargo.lock') }}
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+
       - uses: actions-rs/cargo@v1
-        name: Build
+        name: Build (standard)
         with:
-          use-cross: ${{ matrix.target != 'x86_64-unknown-linux-gnu' }}
+          use-cross: ${{ matrix.cross }}
           command: build
           args: --release --target ${{ matrix.target }}
-      - name: Package
-        run: |
-          set -eux
-          bins="target/${{ matrix.target }}/release/"
-          version=$(echo "${{ github.ref }}" | cut -d/ -f3)
-          dst="cni-plugins-${version}-${{ matrix.target }}"
+      - name: Package (standard)
+        run: bash .github/workflows/package.sh "${{ matrix.plugin }}" "${{ matrix.target }}" "${{ github.ref }}"
 
-          mkdir "$dst"
-          for exec in (advertise ipam-delegated ipam-da-consul ipam-ds-nomad); do
-            strip "$bins/$exec" || true
-            mv "$bins/$exec" "$dst/"
-            mv "$exec/README.md" "$dst/README-$exec.md"
-          done
+      - uses: actions-rs/cargo@v1
+        name: Build (verbose)
+        with:
+          use-cross: ${{ matrix.cross }}
+          command: build
+          args: --release --target ${{ matrix.target }} --features release-logs
+      - name: Package (verbose)
+        run: bash .github/workflows/package.sh "${{ matrix.plugin }}" "${{ matrix.target }}" "${{ github.ref }}" verbose
 
-          mv README.md CHANGELOG.md COPYRIGHT LICENSE-MIT LICENSE-APACHE docs "$dst/"
-          tar cavf "$dst.tar.xz" "$dst"
       - uses: softprops/action-gh-release@v1
         with:
-          files: cni-plugins-*.tar.xz
+          files: "*.tar.zst"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
