@@ -38,7 +38,8 @@ fn main() {
 
 	let cni_version = config.cni_version.clone(); // for error
 	info!(
-		"ipam-da-consul serving spec v{} for command={:?}",
+		"{} serving spec v{} for command={:?}",
+		env!("CARGO_PKG_NAME"),
 		cni_version, command
 	);
 
@@ -127,7 +128,6 @@ fn main() {
 
 				debug!("ip={:?}", ip);
 
-				// assign the container_id to the ip (if new/random ip, use cas=0)
 				let mut assign_url =
 					consul_url.join(&format!("v1/kv/ipam/{}/{}", pool_name, ip.ip()))?;
 
@@ -189,7 +189,6 @@ fn main() {
 					}
 				});
 
-				// TODO: do we actually want a transaction? should we best-effort delete instead?
 				consul::delete_all(&consul_url, rip).await?;
 
 				Ok(IpamSuccessReply {

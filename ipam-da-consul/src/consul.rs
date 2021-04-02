@@ -101,6 +101,10 @@ pub async fn delete_all(
 		})
 		.collect::<Vec<_>>();
 
+	// FIXME!!! We actually want to best-effort this, not to fail the whole thing
+	// on error (because otherwise we'll leave dangling IPs if any in this set
+	// are re-allocated before we get to delete them, as is common in rolling
+	// update situations). So, need to refactor without the transaction.
 	debug!("going to delete {} entries", actions.len());
 	let txn_url = consul_url.join("v1/txn")?;
 	let res = surf::put(txn_url)
