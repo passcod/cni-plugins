@@ -1,21 +1,21 @@
 [package]
-name = "cni-ipam-delegated"
+name = "cni-advertise"
 version = "0.1.0"
 publish = false
 
 authors = ["Félix Saparelli <felix@passcod.name>"]
 license = "Apache 2.0 OR MIT"
-description = "CNI IPAM plugin to delegate work to a stack of IPAM plugins"
-keywords = ["cni", "cni-plugin", "ipam"]
+description = "CNI post-processing plugin to advertise IPs with ARP/NDP"
+keywords = ["cni", "cni-plugin", "ndp-advertisement", "gratuitous-arp", "arp", "ndp"]
 
-documentation = "https://github.com/passcod/cni-plugins/tree/main/ipam-delegated"
+documentation = "https://github.com/passcod/cni-plugins/tree/main/advertise"
 homepage = "https://github.com/passcod/cni-plugins"
 repository = "https://github.com/passcod/cni-plugins"
 
 edition = "2018"
 
 [[bin]]
-name = "ipam-delegated"
+name = "advertise"
 path = "src/main.rs"
 
 [dependencies]

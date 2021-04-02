@@ -1,25 +1,25 @@
 [package]
-name = "cni-ipam-delegated"
+name = "cni-ipam-da-consul"
 version = "0.1.0"
 publish = false
 
 authors = ["Félix Saparelli <felix@passcod.name>"]
 license = "Apache 2.0 OR MIT"
-description = "CNI IPAM plugin to delegate work to a stack of IPAM plugins"
-keywords = ["cni", "cni-plugin", "ipam"]
+description = "CNI IPAM delegated plugin to allocate IPs in pools stored in Consul KV"
+keywords = ["cni", "cni-plugin", "consul", "ipam"]
 
-documentation = "https://github.com/passcod/cni-plugins/tree/main/ipam-delegated"
+documentation = "https://github.com/passcod/cni-plugins/tree/main/ipam-da-consul"
 homepage = "https://github.com/passcod/cni-plugins"
 repository = "https://github.com/passcod/cni-plugins"
 
 edition = "2018"
 
 [[bin]]
-name = "ipam-delegated"
+name = "ipam-da-consul"
 path = "src/main.rs"
 
 [dependencies]
-cni-plugin = { path = "../plugin", features = ["with-smol"] }
+cni-plugin = { path = "../plugin" }
 async-std = "1.9.0"
 ipnetwork = "0.17.0"
 serde = { version = "1.0.123", features = ["derive"] }
@@ -29,6 +29,7 @@ base64 = "0.13.0"
 thiserror = "1.0.24"
 semver = "0.11.0"
 log = "0.4.14"
+url = "2.2.1"
 
 [features]
 release-logs = ["cni-plugin/release-logs"]

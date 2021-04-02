@@ -1,0 +1,51 @@
+on:
+  push:
+    tags:
+      - v*.*.*
+
+name: Release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: # TODO: one build per plugin
+        target:
+          - x86_64-unknown-linux-gnu
+          - x86_64-unknown-linux-musl
+          - aarch64-unknown-linux-gnu
+          - aarch64-unknown-linux-musl
+          - armv7-unknown-linux-gnueabihf
+          - armv7-unknown-linux-musleabihf
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - uses: actions-rs/cargo@v1
+        name: Build
+        with:
+          use-cross: ${{ matrix.target != 'x86_64-unknown-linux-gnu' }}
+          command: build
+          args: --release --target ${{ matrix.target }}
+      - name: Package
+        run: |
+          set -eux
+          bins="target/${{ matrix.target }}/release/"
+          version=$(echo "${{ github.ref }}" | cut -d/ -f3)
+          dst="cni-plugins-${version}-${{ matrix.target }}"
+
+          mkdir "$dst"
+          for exec in (advertise ipam-delegated ipam-da-consul ipam-ds-nomad); do
+            strip "$bins/$exec" || true
+            mv "$bins/$exec" "$dst/"
+            mv "$exec/README.md" "$dst/README-$exec.md"
+          done
+
+          mv README.md CHANGELOG.md COPYRIGHT LICENSE-MIT LICENSE-APACHE docs "$dst/"
+          tar cavf "$dst.tar.xz" "$dst"
+      - uses: softprops/action-gh-release@v1
+        with:
+          files: cni-plugins-*.tar.xz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

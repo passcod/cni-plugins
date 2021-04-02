@@ -1,7 +1,8 @@
 [workspace]
 members = [
   "plugin",
+  "advertise",
   "ipam-delegated",
-  "ipam-consul",
-  "ipam-nomad",
+  "ipam-da-consul",
+  "ipam-ds-nomad",
 ]
