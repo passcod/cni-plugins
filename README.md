@@ -1,6 +1,7 @@
 [![Crate release version](https://flat.badgen.net/crates/v/cni-plugins)](https://crates.io/crates/cni-plugins)
 [![Crate license: Apache 2.0 or MIT](https://flat.badgen.net/badge/license/Apache%202.0%20or%20MIT)][copyright]
 ![MSRV: latest stable](https://flat.badgen.net/badge/MSRV/latest%20stable/orange)
+[![CI status](https://github.com/passcod/cni-plugins/actions/workflows/check.yml/badge.svg)](https://github.com/passcod/cni-plugins/actions/workflows/check.yml)
 
 # CNI Plugins
 
