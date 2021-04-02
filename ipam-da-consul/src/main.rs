@@ -115,10 +115,9 @@ fn main() {
 
 					pool.iter()
 						.flat_map(|range| range.iter_free())
-						.filter(|(ip, _)| !pool_known.contains_key(&ip.ip()))
-						.next()
-						.map(|(ip, range)| (ip, range.gateway.clone()))
-						.ok_or(AppError::PoolFull(pool_name.clone()))?
+						.find(|(ip, _)| !pool_known.contains_key(&ip.ip()))
+						.map(|(ip, range)| (ip, range.gateway))
+						.ok_or_else(|| AppError::PoolFull(pool_name.clone()))?
 				};
 
 				debug!("ip={:?}", ip);
@@ -152,7 +151,7 @@ fn main() {
 									IpNetwork::V4(_) => IpNetwork::V4(Ipv4Network::new(Ipv4Addr::new(0,0,0,0),0).unwrap()),
 									IpNetwork::V6(_) => IpNetwork::V6(Ipv6Network::new(Ipv6Addr::new(0,0,0,0,0,0,0,0),0).unwrap()),
 								},
-								gw: gateway.clone(),
+								gw: gateway,
 							}
 						],
 						ips: vec![IpReply {
@@ -212,7 +211,7 @@ fn main() {
 	}
 }
 
-async fn good_server<'u>(list: &'u [Url]) -> AppResult<&'u Url> {
+async fn good_server(list: &[Url]) -> AppResult<&Url> {
 	let mut last_err = None;
 	for url in list {
 		match surf::get(url.join("v1/kv/ipam/")?).await {
