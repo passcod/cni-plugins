@@ -1,11 +1,15 @@
-use std::{collections::BTreeMap, net::{IpAddr, Ipv4Addr, Ipv6Addr}, str::FromStr};
+use std::{
+	collections::BTreeMap,
+	net::{IpAddr, Ipv4Addr, Ipv6Addr},
+	str::FromStr,
+};
 
 use async_std::task::block_on;
 use cni_plugin::{
+	config::Route,
 	error::CniError,
 	ip_range::IpRange,
 	reply::{reply, IpReply, IpamSuccessReply},
-	config::Route,
 	Cni, Command, Inputs,
 };
 use consul::ConsulValue;
@@ -145,15 +149,18 @@ fn main() {
 					info!("allocated address {}", ip);
 					Ok(IpamSuccessReply {
 						cni_version: config.cni_version,
-						routes: vec![
-							Route {
-								dst: match ip {
-									IpNetwork::V4(_) => IpNetwork::V4(Ipv4Network::new(Ipv4Addr::new(0,0,0,0),0).unwrap()),
-									IpNetwork::V6(_) => IpNetwork::V6(Ipv6Network::new(Ipv6Addr::new(0,0,0,0,0,0,0,0),0).unwrap()),
-								},
-								gw: gateway,
-							}
-						],
+						routes: vec![Route {
+							dst: match ip {
+								IpNetwork::V4(_) => IpNetwork::V4(
+									Ipv4Network::new(Ipv4Addr::new(0, 0, 0, 0), 0).unwrap(),
+								),
+								IpNetwork::V6(_) => IpNetwork::V6(
+									Ipv6Network::new(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0), 0)
+										.unwrap(),
+								),
+							},
+							gw: gateway,
+						}],
 						ips: vec![IpReply {
 							address: ip,
 							gateway,

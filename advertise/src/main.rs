@@ -26,22 +26,16 @@ fn main() {
 		debug!("config={:#?}", config);
 
 		match command {
-			Command::Add => {
-				Err(CniError::Generic("TODO".into()))
-			}
-			Command::Del => {
-				Ok(SuccessReply {
-					cni_version: config.cni_version,
-					interfaces: Default::default(),
-					ips: Default::default(),
-					routes: Default::default(),
-					dns: Default::default(),
-					specific: Default::default(),
-				})
-			}
-			Command::Check => {
-				Err(CniError::Generic("TODO".into()))
-			}
+			Command::Add => Err(CniError::Generic("TODO".into())),
+			Command::Del => Ok(SuccessReply {
+				cni_version: config.cni_version,
+				interfaces: Default::default(),
+				ips: Default::default(),
+				routes: Default::default(),
+				dns: Default::default(),
+				specific: Default::default(),
+			}),
+			Command::Check => Err(CniError::Generic("TODO".into())),
 			Command::Version => unreachable!(),
 		}
 	});

@@ -33,10 +33,7 @@ where
 	version.to_string().serialize(serializer)
 }
 
-pub(crate) fn serialize_version_list<S>(
-	list: &[Version],
-	serializer: S,
-) -> Result<S::Ok, S::Error>
+pub(crate) fn serialize_version_list<S>(list: &[Version], serializer: S) -> Result<S::Ok, S::Error>
 where
 	S: Serializer,
 {
