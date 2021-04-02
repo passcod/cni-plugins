@@ -13,6 +13,8 @@ This is an IPAM Delegate. See https://github.com/passcod/cni-plugins/tree/main/i
 
 `ipam-da-consul` manages IP pools in Consul KV.
 
+## Configuration
+
 To configure, set this plugin as the final IPAM delegate in your network
 configuration, and add the HTTP addresses of your Consul servers to the
 `ipam.consul_servers` array:
