@@ -244,7 +244,7 @@ impl Cni {
 				}
 
 				reply(VersionResult {
-					cni_version: v.clone(),
+					cni_version: v,
 					supported_versions: supported_versions.into_iter().collect(),
 				});
 			}

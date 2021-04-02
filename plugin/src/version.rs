@@ -34,7 +34,7 @@ where
 }
 
 pub(crate) fn serialize_version_list<S>(
-	list: &Vec<Version>,
+	list: &[Version],
 	serializer: S,
 ) -> Result<S::Ok, S::Error>
 where
