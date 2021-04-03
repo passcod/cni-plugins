@@ -46,7 +46,7 @@ This is the basic structure:
 use cni_plugin::Cni;
 
 fn main() {
-    cni_plugin::install_logging("hello-world.log");
+    cni_plugin::install_logger("hello-world.log");
     match Cni::load() {
         Cni::Add { container_id, ifname, netns, path, config } => {}
         Cni::Del { container_id, ifname, netns, path, config } => {}
@@ -219,7 +219,7 @@ and clean up before you call it. There's two approaches here:
 use cni_plugin::{Cni, error::CniError, reply::{reply, SuccessReply}};
 
 fn main() {
-    cni_plugin::install_logging("hello-world.log");
+    cni_plugin::install_logger("hello-world.log");
     match Cni::load() {
         Cni::Add { container_id, ifname, netns, path, config } => {
             let cni_version = config.cni_version.clone(); // for error
@@ -245,7 +245,7 @@ fn main() {
 use cni_plugin::{Cni, Command, Inputs, error::CniError, reply::{reply, SuccessReply}};
 
 fn main() {
-    cni_plugin::install_logging("hello-world.log");
+    cni_plugin::install_logger("hello-world.log");
 
     // UNWRAP: None on Version, but Version is handled by load()
     let Inputs {

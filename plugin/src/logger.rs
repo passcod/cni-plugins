@@ -1,6 +1,6 @@
 use std::{fs::OpenOptions, path::{Path, PathBuf}};
 
-/// Install the standard logger for plugins
+/// Install the standard logger for plugins.
 ///
 /// This logger always emits `warn` and `error` level messages to STDERR, and
 /// emits all messages from `debug` level up to a log file in development and

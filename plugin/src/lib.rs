@@ -1,9 +1,26 @@
+#![warn(missing_docs)]
+
 //! Library to write CNI plugins.
 //!
 //! - CNI information: on the [cni.dev](https://cni.dev) website.
-//! - Tooling overview: https://github.com/passcod/cni-plugins/blob/main/docs/Standard-Tooling.md
-//! - Tutorial: https://github.com/passcod/cni-plugins/blob/main/docs/Plugin-Hello-World.md
-#![warn(missing_docs)]
+//! - [Tooling overview][tools]
+//! - [Tutorial][tuto]
+//!
+//! [tools]: https://github.com/passcod/cni-plugins/blob/main/docs/Standard-Tooling.md
+//! [tuto]: https://github.com/passcod/cni-plugins/blob/main/docs/Plugin-Hello-World.md
+//!
+//! # Quick start
+//!
+//! ```no_run
+//! use cni_plugin::{Cni, install_logger};
+//! install_logger("hello-world.log");
+//! match Cni::load() {
+//!     Cni::Add { container_id, ifname, netns, path, config } => {}
+//!     Cni::Del { container_id, ifname, netns, path, config } => {}
+//!     Cni::Check { container_id, ifname, netns, path, config } => {}
+//!     Cni::Version(_) => unreachable!()
+//! }
+//! ```
 
 pub use cni::Cni;
 pub use command::Command;
