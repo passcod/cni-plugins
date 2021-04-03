@@ -12,6 +12,7 @@ pub mod reply;
 
 mod cni;
 mod command;
+mod dns;
 mod inputs;
 mod logger;
 mod path;

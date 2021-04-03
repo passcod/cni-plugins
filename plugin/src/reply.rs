@@ -7,6 +7,7 @@ use semver::Version;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+pub use crate::dns::Dns;
 pub use crate::version::VersionReply;
 
 pub trait ReplyPayload<'de>: std::fmt::Debug + Serialize + Deserialize<'de> {
@@ -103,19 +104,6 @@ pub struct Ip {
 	pub gateway: Option<IpAddr>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub interface: Option<usize>, // None for ipam
-}
-
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Dns {
-	#[serde(default, skip_serializing_if = "Vec::is_empty")]
-	pub nameservers: Vec<IpAddr>,
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub domain: Option<String>,
-	#[serde(default, skip_serializing_if = "Vec::is_empty")]
-	pub search: Vec<String>,
-	#[serde(default, skip_serializing_if = "Vec::is_empty")]
-	pub options: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
