@@ -17,6 +17,7 @@ version=$(echo "${ref}" | cut -d/ -f3)
 dst="${plugin}-${version}-${target}${suffix}"
 
 strip "${bindir}/${plugin}${ext}" || true
+mkdir -p "${dst}"
 cp "${bindir}/${plugin}${ext}" "${dst}/${plugin}${suffix}${ext}"
 cp "${plugin}/README.md" "${dst}/README.md"
 cp CHANGELOG.md COPYRIGHT LICENSE-MIT LICENSE-APACHE "${dst}/"
