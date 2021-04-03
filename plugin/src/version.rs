@@ -59,7 +59,7 @@ impl Cni {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VersionReply {
-	/// The version specified on input.
+	/// The CNI version of the plugin input config.
 	#[serde(deserialize_with = "deserialize_version")]
 	#[serde(serialize_with = "serialize_version")]
 	pub cni_version: Version,
