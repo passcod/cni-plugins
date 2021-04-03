@@ -1,3 +1,10 @@
+//! Library to write CNI plugins.
+//!
+//! - CNI information: on the [cni.dev](https://cni.dev) website.
+//! - Tooling overview: https://github.com/passcod/cni-plugins/blob/main/docs/Standard-Tooling.md
+//! - Tutorial: https://github.com/passcod/cni-plugins/blob/main/docs/Plugin-Hello-World.md
+#![warn(missing_docs)]
+
 pub use cni::Cni;
 pub use command::Command;
 pub use inputs::Inputs;
