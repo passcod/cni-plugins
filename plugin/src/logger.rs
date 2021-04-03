@@ -1,4 +1,7 @@
-use std::{fs::OpenOptions, path::{Path, PathBuf}};
+use std::{
+	fs::OpenOptions,
+	path::{Path, PathBuf},
+};
 
 /// Install the standard logger for plugins.
 ///

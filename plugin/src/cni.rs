@@ -9,11 +9,14 @@ use log::{debug, error};
 use regex::Regex;
 use semver::Version;
 
-use crate::{command::Command, config::NetworkConfig, error::{
-	CniError,
-	EmptyValueError,
-	RegexValueError,
-}, path::CniPath, reply::reply, version::VersionPayload};
+use crate::{
+	command::Command,
+	config::NetworkConfig,
+	error::{CniError, EmptyValueError, RegexValueError},
+	path::CniPath,
+	reply::reply,
+	version::VersionPayload,
+};
 
 /// The main entrypoint to this plugin and the enum which contains plugin input.
 ///

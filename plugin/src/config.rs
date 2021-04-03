@@ -234,7 +234,6 @@ pub struct RuntimeConfig {
 
 	// TODO: infinibandGUID (behind feature)
 	// TODO: (PCI) deviceID (behind feature)
-
 	/// Custom runtime fields.
 	///
 	/// This is a [`serde(flatten)`](https://serde.rs/field-attrs.html#flatten)

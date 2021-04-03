@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::{Cni, Command, config::NetworkConfig};
+use crate::{config::NetworkConfig, Cni, Command};
 
 /// An alternate representation of plugin inputs.
 ///

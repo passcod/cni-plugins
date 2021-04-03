@@ -5,7 +5,11 @@ use std::{collections::HashSet, str::FromStr};
 use semver::{Version, VersionReq};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::{Cni, error::CniError, reply::{ReplyPayload, reply}};
+use crate::{
+	error::CniError,
+	reply::{reply, ReplyPayload},
+	Cni,
+};
 
 pub const COMPATIBLE_VERSIONS: &str = "=0.4.0||^1.0.0";
 pub const SUPPORTED_VERSIONS: &[&str] = &["0.4.0", "1.0.0"];
