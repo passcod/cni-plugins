@@ -10,8 +10,8 @@ jobs:
     strategy:
       matrix:
         name:
-          - advertise-linux-amd64-gnu
-          - advertise-linux-amd64-musl
+          # - advertise-linux-amd64-gnu
+          # - advertise-linux-amd64-musl
 
           - ipam-da-consul-linux-amd64-gnu
           - ipam-da-consul-linux-amd64-musl
@@ -23,17 +23,17 @@ jobs:
           - ipam-delegated-linux-amd64-musl
 
         include:
-          - name: advertise-linux-amd64-gnu
-            plugin: advertise
-            os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            cross: false
+          # - name: advertise-linux-amd64-gnu
+          #   plugin: advertise
+          #   os: ubuntu-latest
+          #   target: x86_64-unknown-linux-gnu
+          #   cross: false
 
-          - name: advertise-linux-amd64-musl
-            plugin: advertise
-            os: ubuntu-latest
-            target: x86_64-unknown-linux-musl
-            cross: true
+          # - name: advertise-linux-amd64-musl
+          #   plugin: advertise
+          #   os: ubuntu-latest
+          #   target: x86_64-unknown-linux-musl
+          #   cross: true
 
           - name: ipam-delegated-linux-amd64-gnu
             plugin: ipam-delegated
