@@ -24,7 +24,7 @@ pub enum CniError {
 	///
 	/// The [`Version`] in the error is the CNI version provided, not ours.
 	///
-	/// Also see [`crate::COMPATIBLE_VERSIONS`] and [`crate::SUPPORTED_VERSIONS`].
+	/// Also see [`VersionReply`][crate::reply::VersionReply].
 	#[error("plugin does not understand CNI version: {0}")]
 	Incompatible(Version),
 

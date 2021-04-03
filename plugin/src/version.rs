@@ -56,8 +56,6 @@ impl Cni {
 /// compatibility, so it cheats a bit when rendering this reply within
 /// [`Cni::load()`][crate::Cni::load()] and adds the runtime-requested version
 /// number to the `supported_versions` field when it is semver-compatible.
-///
-/// Also see [`crate::SUPPORTED_VERSIONS`] and [`crate::COMPATIBLE_VERSIONS`].
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VersionReply {
