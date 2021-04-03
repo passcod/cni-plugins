@@ -47,11 +47,7 @@ fn main() {
 			);
 
 			let res: AppResult<IpamSuccessReply> = block_on(async move {
-				let alloc_id = if container_id.starts_with("cnitool-") {
-					"ae999124-a427-2e89-f763-a8742900854b".into() // testing
-				} else {
-					container_id
-				};
+				let alloc_id = container_id;
 
 				let ipam = config.ipam.clone().ok_or(CniError::MissingField("ipam"))?;
 				debug!("ipam={:?}", ipam);
@@ -109,21 +105,18 @@ fn main() {
 					err: Box::new(CniError::Generic(format!("alloc {} is for task group {} but its own job definition is missing it", alloc_id, alloc.task_group)))
 				})?.clone();
 
-				// TODO: enable this
-				if false {
-					debug!("checking group network is a cni network");
-					if let Some(network_mode) = group.networks.first().map(|n| &n.mode) {
-						if !network_mode.starts_with("cni/") {
-							return Err(CniError::InvalidField {
-								field: "alloc.group.networks[0].mode",
-								expected: "cni/<name>",
-								value: network_mode.as_str().into(),
-							}
-							.into());
+				debug!("checking group network is a cni network");
+				if let Some(network_mode) = group.networks.first().map(|n| &n.mode) {
+					if !network_mode.starts_with("cni/") {
+						return Err(CniError::InvalidField {
+							field: "alloc.group.networks[0].mode",
+							expected: "cni/<name>",
+							value: network_mode.as_str().into(),
 						}
-					} else {
-						return Err(CniError::MissingField("alloc.group.networks[0]").into());
+						.into());
 					}
+				} else {
+					return Err(CniError::MissingField("alloc.group.networks[0]").into());
 				}
 
 				debug!("reading pool name");
