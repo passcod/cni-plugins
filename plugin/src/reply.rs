@@ -7,6 +7,8 @@ use semver::Version;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+pub use crate::version::VersionReply;
+
 pub trait ReplyPayload<'de>: std::fmt::Debug + Serialize + Deserialize<'de> {
 	fn code(&self) -> i32 {
 		0
