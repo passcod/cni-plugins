@@ -25,6 +25,9 @@ use crate::{config::NetworkConfig, error::CniError, reply::ReplyPayload, Command
 /// [`SuccessReply`][crate::reply::SuccessReply] or
 /// [`IpamSuccessReply`][crate::reply::IpamSuccessReply].
 ///
+/// STDIN and STDOUT are handled as per spec, and STDERR is hooked up directly
+/// to the calling process's STDERR.
+///
 /// # Errors
 ///
 /// This method errors if:

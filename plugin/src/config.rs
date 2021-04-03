@@ -33,7 +33,7 @@ pub struct NetworkConfig {
 	/// This is a [Semantic Version 2.0](https://semver.org/) version number,
 	/// and that is enforced here by being a [`Version`], not a string.
 	///
-	/// This version must be used when creating [replies][mod@crate::reply], which
+	/// This version must be used when creating [replies][crate::reply], which
 	/// include a similar field. The spec does not currently cover the case
 	/// where an [`ErrorReply`][crate::reply::ErrorReply] must be created
 	/// _before_ the config is parsed, or in cases of unparseable config; this
