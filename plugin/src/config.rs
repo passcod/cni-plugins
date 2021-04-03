@@ -55,7 +55,8 @@ pub struct IpamConfig {
 #[serde(rename_all = "camelCase")]
 pub struct DnsConfig {
 	#[serde(default, skip_serializing_if = "Vec::is_empty")]
-	pub nameservers: Vec<String>,
+	pub nameservers: Vec<IpAddr>,
+
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub domain: Option<String>,
 	#[serde(default, skip_serializing_if = "Vec::is_empty")]
