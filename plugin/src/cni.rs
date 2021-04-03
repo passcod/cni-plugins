@@ -15,35 +15,112 @@ use crate::{command::Command, config::NetworkConfig, error::{
 	RegexValueError,
 }, path::CniPath, reply::reply, version::VersionPayload};
 
+/// The main entrypoint to this plugin and the enum which contains plugin input.
+///
+/// See the field definitions on [`Inputs`][crate::Inputs] for more details on
+/// the command subfields.
 #[derive(Clone, Debug)]
 pub enum Cni {
+	/// The ADD command: add namespace to network, or apply modifications.
+	///
+	/// A CNI plugin, upon receiving an ADD command, should either:
+	/// - create the interface defined by `ifname` inside the namespace at the
+	///   `netns` path, or
+	/// - adjust the configuration of the interface defined by `ifname` inside
+	///   the namespace at the `netns` path.
+	///
+	/// More details in the [spec](https://github.com/containernetworking/cni/blob/master/SPEC.md#add-add-container-to-network-or-apply-modifications).
 	Add {
+		/// The container ID, as provided by the runtime.
 		container_id: String,
+
+		/// The name of the interface inside the container.
 		ifname: String,
+
+		/// The container’s “isolation domain” or namespace path.
 		netns: PathBuf,
+
+		/// List of paths to search for CNI plugin executables.
 		path: Vec<PathBuf>,
+
+		/// The input network configuration.
 		config: NetworkConfig,
 	},
+
+	/// The DEL command: remove namespace from network, or un-apply modifications.
+	///
+	/// A CNI plugin, upon receiving a DEL command, should either:
+	/// - delete the interface defined by `ifname` inside the namespace at the
+	///   `netns` path, or
+	/// - undo any modifications applied in the plugin's ADD functionality.
+	///
+	/// More details in the [spec](https://github.com/containernetworking/cni/blob/master/SPEC.md#del-remove-container-from-network-or-un-apply-modifications).
 	Del {
+		/// The container ID, as provided by the runtime.
 		container_id: String,
+
+		/// The name of the interface inside the container.
 		ifname: String,
+
+		/// The container’s “isolation domain” or namespace path.
+		///
+		/// May not be provided for DEL commands.
 		netns: Option<PathBuf>,
+
+		/// List of paths to search for CNI plugin executables.
 		path: Vec<PathBuf>,
+
+		/// The input network configuration.
 		config: NetworkConfig,
 	},
+
+	/// The CHECK command: check that a namespace's networking is as expected.
+	///
+	/// This was introduced in CNI spec v1.0.0.
+	///
+	/// More details in the [spec](https://github.com/containernetworking/cni/blob/master/SPEC.md#check-check-containers-networking-is-as-expected).
 	Check {
+		/// The container ID, as provided by the runtime.
 		container_id: String,
+
+		/// The name of the interface inside the container.
 		ifname: String,
+
+		/// The container’s “isolation domain” or namespace path.
 		netns: PathBuf,
+
+		/// List of paths to search for CNI plugin executables.
 		path: Vec<PathBuf>,
+
+		/// The input network configuration.
 		config: NetworkConfig,
 	},
+
+	/// The VERSION command: used to probe plugin version support.
+	///
+	/// The plugin should reply with a [`VersionReply`][crate::reply::VersionReply].
+	///
+	/// Note that when using [`Cni::load()`], this command is already handled,
+	/// and you should mark this [`unreachable!()`].
 	Version(Version),
 }
 
 impl Cni {
-	// TODO: in doc: CNI_ARGS is deprecated in the spec, and we deliberately
-	// chose to ignore it here.
+	/// Reads the plugin inputs from the environment and STDIN.
+	///
+	/// This reads _and validates_ the required `CNI_*` environment variables,
+	/// and the STDIN for a JSON-encoded input object, but it does not output
+	/// anything to STDOUT nor exits the process, nor does it panic.
+	///
+	/// Note that [as per the spec][args-deprecation], `CNI_ARGS` is deprecated,
+	/// and this library deliberately chooses to ignore it. You may of course
+	/// read and parse it yourself.
+	///
+	/// A number of things are logged in here. If you have used
+	/// [`install_logger`][crate::install_logger], this may result in output
+	/// being sent to STDERR (and/or to file).
+	///
+	/// In general you should prefer [`Cni::load()`].
 	pub fn from_env() -> Result<Self, CniError> {
 		fn require_env<T>(var: &'static str) -> Result<T, CniError>
 		where
@@ -157,6 +234,14 @@ impl Cni {
 		}
 	}
 
+	/// Reads the plugin inputs from the environment and STDIN and reacts to errors and the VERSION command.
+	///
+	/// This does the same thing as [`Cni::from_env()`] but it also immediately
+	/// replies to the `VERSION` command, and also immediately replies if errors
+	/// result from reading the inputs, both of which write to STDOUT and exit.
+	///
+	/// This version also logs a debug message with the name and version of this
+	/// library crate.
 	pub fn load() -> Self {
 		debug!(
 			"CNI plugin built with {} crate version {}",
