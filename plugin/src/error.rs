@@ -266,6 +266,13 @@ impl CniError {
 #[error("must not be empty")]
 pub struct EmptyValueError;
 
+/// Underlying error used for an invalid `CNI_COMMAND`.
+///
+/// Used with [`CniError::InvalidEnv`].
+#[derive(Clone, Copy, Debug, Error)]
+#[error("must be one of ADD, DEL, CHECK, VERSION")]
+pub struct InvalidCommandError;
+
 /// Underlying error used for a value that should match a regex but doesn’t.
 ///
 /// Used with [`CniError::InvalidEnv`].

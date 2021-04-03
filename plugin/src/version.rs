@@ -1,11 +1,14 @@
 //! Mostly internal types for handling versions.
 
-use std::str::FromStr;
+use std::{collections::HashSet, str::FromStr};
 
-use semver::Version;
+use semver::{Version, VersionReq};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::reply::ReplyPayload;
+use crate::{Cni, error::CniError, reply::{ReplyPayload, reply}};
+
+pub const COMPATIBLE_VERSIONS: &str = "=0.4.0||^1.0.0";
+pub const SUPPORTED_VERSIONS: &[&str] = &["0.4.0", "1.0.0"];
 
 #[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -15,7 +18,38 @@ pub(crate) struct VersionPayload {
 	pub cni_version: Version,
 }
 
-/// The reply type for `VERSION` commands.
+impl Cni {
+	pub(crate) fn check_version(version: &Version) -> Result<(), CniError> {
+		if !VersionReq::parse(COMPATIBLE_VERSIONS)
+			.unwrap()
+			.matches(version)
+		{
+			Err(CniError::Incompatible(version.clone()))
+		} else {
+			Ok(())
+		}
+	}
+
+	pub(crate) fn handle_version(version: Version) -> ! {
+		let mut supported_versions = SUPPORTED_VERSIONS
+			.iter()
+			.map(|v| Version::parse(*v))
+			.collect::<Result<HashSet<_>, _>>()
+			.unwrap();
+
+		let supported = Self::check_version(&version).is_ok();
+		if supported {
+			supported_versions.insert(version.clone());
+		}
+
+		reply(VersionReply {
+			cni_version: version,
+			supported_versions: supported_versions.into_iter().collect(),
+		});
+	}
+}
+
+/// The reply structure used when returning for a `VERSION` command.
 ///
 /// The spec currently mandates that supported versions are provided as an
 /// exhaustive array, but this library hopes to do support according to semver
