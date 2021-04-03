@@ -15,7 +15,6 @@ _A library for writing CNI plugins in Rust, and some plugins built with it._
 - Guides:
   * [Standard tooling](./docs/Standard-Tooling.md)
   * [Hello world plugin](./docs/Plugin-Hello-World.md)
-  * [IPAM hello world](./docs/IPAM-Hello-World.md)
 - **[API documentation][docs]** for the `cni-plugin` crate.
 - CNI information on the [cni.dev](https://cni.dev) website.
 - [Dual-licensed][copyright] with Apache 2.0 and MIT.
