@@ -112,15 +112,17 @@ impl Cni {
 	/// and the STDIN for a JSON-encoded input object, but it does not output
 	/// anything to STDOUT nor exits the process, nor does it panic.
 	///
-	/// Note that [as per the spec][args-deprecation], `CNI_ARGS` is deprecated,
-	/// and this library deliberately chooses to ignore it. You may of course
-	/// read and parse it yourself.
+	/// Note that [as per convention][args-deprecation], the `CNI_ARGS` variable
+	/// is deprecated, and this library deliberately chooses to ignore it. You
+	/// may of course read and parse it yourself.
 	///
 	/// A number of things are logged in here. If you have used
 	/// [`install_logger`][crate::install_logger], this may result in output
 	/// being sent to STDERR (and/or to file).
 	///
 	/// In general you should prefer [`Cni::load()`].
+	///
+	/// [args-deprecation]: https://github.com/containernetworking/cni/blob/master/CONVENTIONS.md#cni_args
 	pub fn from_env() -> Result<Self, CniError> {
 		fn require_env<T>(var: &'static str) -> Result<T, CniError>
 		where
