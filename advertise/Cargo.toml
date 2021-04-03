@@ -4,7 +4,7 @@ version = "0.1.0"
 publish = false
 
 authors = ["Félix Saparelli <felix@passcod.name>"]
-license = "Apache 2.0 OR MIT"
+license = "Apache-2.0 OR MIT"
 description = "CNI post-processing plugin to advertise IPs with ARP/NDP"
 keywords = ["cni", "cni-plugin", "ndp-advertisement", "gratuitous-arp", "arp", "ndp"]
 

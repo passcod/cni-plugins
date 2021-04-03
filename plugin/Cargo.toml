@@ -3,7 +3,7 @@ name = "cni-plugin"
 version = "0.1.0"
 
 authors = ["Félix Saparelli <felix@passcod.name>"]
-license = "Apache 2.0 OR MIT"
+license = "Apache-2.0 OR MIT"
 description = "Framework to implement CNI (container networking) plugins in Rust"
 keywords = ["cni", "cni-plugin", "container-networking", "networking", "container"]
 

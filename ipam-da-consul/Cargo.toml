@@ -4,7 +4,7 @@ version = "0.1.0"
 publish = false
 
 authors = ["Félix Saparelli <felix@passcod.name>"]
-license = "Apache 2.0 OR MIT"
+license = "Apache-2.0 OR MIT"
 description = "CNI IPAM delegated plugin to allocate IPs in pools stored in Consul KV"
 keywords = ["cni", "cni-plugin", "consul", "ipam"]
 
