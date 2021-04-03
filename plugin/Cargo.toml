@@ -32,3 +32,6 @@ log = "0.4.14"
 release-logs = []
 with-smol = ["async-process", "futures"]
 with-tokio = ["tokio/io-util", "tokio/process"]
+
+[package.metadata.docs.rs]
+features = ["with-smol"]
