@@ -1,6 +1,6 @@
 [package]
 name = "cni-ipam-delegated"
-version = "0.1.0"
+version = "0.0.0"
 publish = false
 
 authors = ["Félix Saparelli <felix@passcod.name>"]
@@ -19,16 +19,16 @@ name = "ipam-delegated"
 path = "src/main.rs"
 
 [dependencies]
-cni-plugin = { path = "../plugin", features = ["with-smol"] }
 async-std = "1.9.0"
+base64 = "0.13.0"
+cni-plugin = { path = "../plugin", features = ["with-smol"] }
 ipnetwork = "0.17.0"
+log = "0.4.14"
+semver = "0.11.0"
 serde = { version = "1.0.123", features = ["derive"] }
 serde_json = "1.0.62"
 surf = "2.2.0"
-base64 = "0.13.0"
 thiserror = "1.0.24"
-semver = "0.11.0"
-log = "0.4.14"
 
 [features]
 release-logs = ["cni-plugin/release-logs"]
