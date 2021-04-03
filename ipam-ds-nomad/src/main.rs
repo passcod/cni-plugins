@@ -3,7 +3,7 @@ use std::{collections::HashMap, net::IpAddr};
 use async_std::task::block_on;
 use cni_plugin::{
 	error::CniError,
-	reply::{reply, DnsReply, IpamSuccessReply},
+	reply::{reply, Dns, IpamSuccessReply},
 	Cni,
 };
 use log::{debug, error, info, warn};
@@ -159,7 +159,7 @@ fn main() {
 					cni_version: config.cni_version,
 					ips,
 					routes: Vec::new(),
-					dns: DnsReply::default(),
+					dns: Dns::default(),
 					specific,
 				})
 

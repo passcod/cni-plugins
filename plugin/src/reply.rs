@@ -39,12 +39,12 @@ pub struct SuccessReply {
 	#[serde(serialize_with = "crate::version::serialize_version")]
 	pub cni_version: Version,
 	#[serde(default)]
-	pub interfaces: Vec<InterfaceReply>,
+	pub interfaces: Vec<Interface>,
 	#[serde(default)]
-	pub ips: Vec<IpReply>,
+	pub ips: Vec<Ip>,
 	#[serde(default)]
-	pub routes: Vec<RouteReply>,
-	pub dns: DnsReply,
+	pub routes: Vec<Route>,
+	pub dns: Dns,
 
 	#[serde(flatten)]
 	pub specific: HashMap<String, Value>,
@@ -75,11 +75,11 @@ pub struct IpamSuccessReply {
 	#[serde(serialize_with = "crate::version::serialize_version")]
 	pub cni_version: Version,
 	#[serde(default)]
-	pub ips: Vec<IpReply>,
+	pub ips: Vec<Ip>,
 	#[serde(default)]
-	pub routes: Vec<RouteReply>,
+	pub routes: Vec<Route>,
 	#[serde(default)]
-	pub dns: DnsReply,
+	pub dns: Dns,
 
 	#[serde(flatten)]
 	pub specific: HashMap<String, Value>,
@@ -89,7 +89,7 @@ impl<'de> ReplyPayload<'de> for IpamSuccessReply {}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct InterfaceReply {
+pub struct Interface {
 	pub name: String,
 	pub mac: MacAddr6,
 	pub sandbox: PathBuf,
@@ -97,7 +97,7 @@ pub struct InterfaceReply {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct IpReply {
+pub struct Ip {
 	pub address: IpNetwork,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub gateway: Option<IpAddr>,
@@ -107,7 +107,7 @@ pub struct IpReply {
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct DnsReply {
+pub struct Dns {
 	#[serde(default, skip_serializing_if = "Vec::is_empty")]
 	pub nameservers: Vec<IpAddr>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
@@ -120,7 +120,7 @@ pub struct DnsReply {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RouteReply {
+pub struct Route {
 	pub dst: IpNetwork,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub gw: Option<IpAddr>,

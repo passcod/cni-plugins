@@ -8,7 +8,7 @@ use async_std::task::block_on;
 use cni_plugin::{
 	error::CniError,
 	ip_range::IpRange,
-	reply::{reply, IpReply, IpamSuccessReply, RouteReply},
+	reply::{reply, Ip, IpamSuccessReply, Route},
 	Cni, Command, Inputs,
 };
 use consul::ConsulValue;
@@ -154,7 +154,7 @@ fn main() {
 					info!("allocated address {}", ip);
 					Ok(IpamSuccessReply {
 						cni_version: config.cni_version,
-						routes: vec![RouteReply {
+						routes: vec![Route {
 							dst: match ip {
 								IpNetwork::V4(_) => IpNetwork::V4(
 									Ipv4Network::new(Ipv4Addr::new(0, 0, 0, 0), 0).unwrap(),
@@ -166,7 +166,7 @@ fn main() {
 							},
 							gw: gateway,
 						}],
-						ips: vec![IpReply {
+						ips: vec![Ip {
 							address: ip,
 							gateway,
 							interface: None,
