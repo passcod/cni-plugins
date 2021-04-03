@@ -315,7 +315,7 @@ dependencies = [
 
 [[package]]
 name = "cni-advertise"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "async-std",
  "cni-plugin",
@@ -325,7 +325,7 @@ dependencies = [
 
 [[package]]
 name = "cni-ipam-da-consul"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "async-std",
  "base64",
@@ -342,7 +342,7 @@ dependencies = [
 
 [[package]]
 name = "cni-ipam-delegated"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "async-std",
  "base64",
@@ -358,7 +358,7 @@ dependencies = [
 
 [[package]]
 name = "cni-ipam-ds-nomad"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "async-std",
  "base64",
@@ -375,7 +375,7 @@ dependencies = [
 
 [[package]]
 name = "cni-plugin"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "async-process",
  "futures",
