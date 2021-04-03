@@ -7,8 +7,6 @@ use semver::Version;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::config::Route;
-
 pub trait ReplyPayload<'de>: std::fmt::Debug + Serialize + Deserialize<'de> {
 	fn code(&self) -> i32 {
 		0
@@ -43,7 +41,7 @@ pub struct SuccessReply {
 	#[serde(default)]
 	pub ips: Vec<IpReply>,
 	#[serde(default)]
-	pub routes: Vec<Route>,
+	pub routes: Vec<RouteReply>,
 	pub dns: DnsReply,
 
 	#[serde(flatten)]
@@ -77,7 +75,7 @@ pub struct IpamSuccessReply {
 	#[serde(default)]
 	pub ips: Vec<IpReply>,
 	#[serde(default)]
-	pub routes: Vec<Route>,
+	pub routes: Vec<RouteReply>,
 	#[serde(default)]
 	pub dns: DnsReply,
 
@@ -116,6 +114,14 @@ pub struct DnsReply {
 	pub search: Vec<String>,
 	#[serde(default, skip_serializing_if = "Vec::is_empty")]
 	pub options: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RouteReply {
+	pub dst: IpNetwork,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub gw: Option<IpAddr>,
 }
 
 pub fn reply<'de, T>(result: T) -> !

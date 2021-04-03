@@ -46,24 +46,9 @@ pub struct IpamConfig {
 	#[serde(rename = "type")]
 	pub plugin: String,
 
-	// doc: common keys, but not in standard
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub subnet: Option<IpNetwork>,
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub gateway: Option<IpAddr>,
-	#[serde(default, skip_serializing_if = "Vec::is_empty")]
-	pub routes: Vec<Route>,
-
+	/// All other IPAM fields.
 	#[serde(flatten)]
 	pub specific: HashMap<String, Value>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Route {
-	pub dst: IpNetwork,
-	#[serde(skip_serializing_if = "Option::is_none")]
-	pub gw: Option<IpAddr>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
