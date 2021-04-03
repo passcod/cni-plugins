@@ -16,8 +16,8 @@ bindir="target/${target}/release"
 version=$(echo "${ref}" | cut -d/ -f3)
 dst="${plugin}-${version}-${target}${suffix}"
 
-strip "${bindir}/${plugin}${exe}" || true
-cp "${bindir}/${plugin}${exe}" "${dst}/${plugin}${suffix}${exe}"
+strip "${bindir}/${plugin}${ext}" || true
+cp "${bindir}/${plugin}${ext}" "${dst}/${plugin}${suffix}${ext}"
 cp "${plugin}/README.md" "${dst}/README.md"
 cp CHANGELOG.md COPYRIGHT LICENSE-MIT LICENSE-APACHE "${dst}/"
 
