@@ -10,7 +10,11 @@ use serde_json::{from_value, to_value};
 
 fn main() {
 	cni_plugin::install_logger("ipam-delegated.log");
-	debug!("{} (CNI IPAM plugin) version {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+	debug!(
+		"{} (CNI IPAM plugin) version {}",
+		env!("CARGO_PKG_NAME"),
+		env!("CARGO_PKG_VERSION")
+	);
 
 	let cni = Cni::load();
 
@@ -124,7 +128,7 @@ fn main() {
 		Ok(res) => reply(res),
 		Err(res) => {
 			error!("error: {}", res);
-			reply(res.into_result(cni_version))
+			reply(res.into_reply(cni_version))
 		}
 	}
 }

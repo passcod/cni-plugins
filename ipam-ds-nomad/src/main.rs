@@ -18,7 +18,11 @@ mod nomad;
 
 fn main() {
 	cni_plugin::install_logger("ipam-ds-nomad.log");
-	debug!("{} (CNI IPAM delegate plugin) version {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+	debug!(
+		"{} (CNI IPAM delegate plugin) version {}",
+		env!("CARGO_PKG_NAME"),
+		env!("CARGO_PKG_VERSION")
+	);
 
 	match Cni::load() {
 		Cni::Add {
@@ -166,7 +170,7 @@ fn main() {
 				Ok(res) => reply(res),
 				Err(res) => {
 					error!("error: {}", res);
-					reply(res.into_result(cni_version))
+					reply(res.into_reply(cni_version))
 				}
 			}
 		}

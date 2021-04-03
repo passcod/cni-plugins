@@ -74,7 +74,7 @@ pub enum CniError {
 
 impl CniError {
 	// doc: result as in ErrorResult, not std's Result
-	pub fn into_result(self, cni_version: Version) -> ErrorReply<'static> {
+	pub fn into_reply(self, cni_version: Version) -> ErrorReply<'static> {
 		match self {
 			Self::Io(e) => ErrorReply {
 				cni_version,

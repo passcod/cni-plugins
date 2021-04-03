@@ -31,9 +31,9 @@ pub enum AppError {
 }
 
 impl AppError {
-	pub fn into_result(self, cni_version: Version) -> ErrorReply<'static> {
+	pub fn into_reply(self, cni_version: Version) -> ErrorReply<'static> {
 		match self {
-			Self::Cni(e) => e.into_result(cni_version),
+			Self::Cni(e) => e.into_reply(cni_version),
 			e @ AppError::Url(_) => ErrorReply {
 				cni_version,
 				code: 120,

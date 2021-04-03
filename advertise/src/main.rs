@@ -8,7 +8,11 @@ use log::{debug, error, info};
 
 fn main() {
 	cni_plugin::install_logger("advertise.log");
-	debug!("{} (CNI post plugin) version {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+	debug!(
+		"{} (CNI post plugin) version {}",
+		env!("CARGO_PKG_NAME"),
+		env!("CARGO_PKG_VERSION")
+	);
 
 	let cni = Cni::load();
 
@@ -28,7 +32,7 @@ fn main() {
 		debug!("config={:#?}", config);
 
 		match command {
-			Command::Add => Err(CniError::Generic("TODO".into())),
+			Command::Add => std::process::exit(0), //Err(CniError::Generic("TODO".into())),
 			Command::Del => Ok(SuccessReply {
 				cni_version: config.cni_version,
 				interfaces: Default::default(),
@@ -46,7 +50,7 @@ fn main() {
 		Ok(res) => reply(res),
 		Err(res) => {
 			error!("error: {}", res);
-			reply(res.into_result(cni_version))
+			reply(res.into_reply(cni_version))
 		}
 	}
 }
