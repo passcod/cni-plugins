@@ -1,4 +1,6 @@
 //! Configuration structures.
+//!
+//! You’ll want to start with [`NetworkConfig`].
 
 use std::{collections::HashMap, net::IpAddr};
 
