@@ -1,6 +1,6 @@
 use async_std::task::block_on;
 use cni_plugin::{
-	delegate,
+	delegation::delegate,
 	error::CniError,
 	reply::{reply, IpamSuccessReply},
 	Cni, Command,

@@ -12,13 +12,10 @@ use regex::Regex;
 use semver::{Version, VersionReq};
 use thiserror::Error;
 
-#[cfg(any(feature = "with-smol", feature = "with-tokio"))]
-pub use crate::delegation::delegate;
-pub use crate::reply::reply;
-
 use crate::config::NetworkConfig;
 use crate::error::{CniError, EmptyValueError, RegexValueError};
 use crate::path::CniPath;
+use crate::reply::reply;
 use crate::version::VersionResult;
 
 pub mod config;
