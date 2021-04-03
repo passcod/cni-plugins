@@ -1,3 +1,9 @@
+//! Plugin delegation.
+//!
+//! This module is only available when either of the **with-smol** (for smol and
+//! async-std async runtimes) or **with-tokio** features are enabled. If both
+//! are provided, the crate won't compile.
+
 use std::{
 	env,
 	io::Cursor,
@@ -10,6 +16,24 @@ use which::which_in;
 
 use crate::{config::NetworkConfig, error::CniError, reply::ReplyPayload, Command};
 
+/// Run a plugin as delegate.
+///
+/// You will want to refer to [Section 4 of the spec][spec-§4] extensively for
+/// the semantics to apply when doing plugin delegation.
+///
+/// The return type is to be the expected success reply type, so either
+/// [`SuccessReply`][crate::reply::SuccessReply] or
+/// [`IpamSuccessReply`][crate::reply::IpamSuccessReply].
+///
+/// # Errors
+///
+/// This method errors if:
+/// - the current directory can’t be obtained
+/// - the `CNI_PATH` variable is missing
+/// - the `CNI_PATH` doesn't contain the `sub_plugin` (as per `PATH` logic)
+/// - the delegate plugin errors
+///
+/// [spec-§4]: https://github.com/containernetworking/cni/blob/master/SPEC.md#section-4-plugin-delegation
 pub async fn delegate<S>(
 	sub_plugin: &str,
 	command: Command,
