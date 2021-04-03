@@ -22,6 +22,8 @@ pub enum CniError {
 
 	/// When the CNI version requested by the runtime is not supported.
 	///
+	/// The [`Version`] in the error is the CNI version provided, not ours.
+	///
 	/// Also see [`crate::COMPATIBLE_VERSIONS`] and [`crate::SUPPORTED_VERSIONS`].
 	#[error("plugin does not understand CNI version: {0}")]
 	Incompatible(Version),
@@ -90,6 +92,7 @@ pub enum CniError {
 	/// # Example
 	///
 	/// ```
+	/// # use cni_plugin::error::CniError;
 	/// CniError::Generic("a total catastrophe".into());
 	/// ```
 	#[error("{0}")]
@@ -104,6 +107,7 @@ pub enum CniError {
 	/// # Example
 	///
 	/// ```
+	/// # use cni_plugin::error::CniError;
 	/// CniError::Debug(Box::new(("hello", "world", vec![1, 2, 3])));
 	/// ```
 	#[error("{0:?}")]
@@ -118,6 +122,7 @@ pub enum CniError {
 	/// # Example
 	///
 	/// ```
+	/// # use cni_plugin::error::CniError;
 	/// CniError::MissingField("ipam.type");
 	/// ```
 	#[error("can't proceed without {0} field")]
@@ -132,6 +137,8 @@ pub enum CniError {
 	/// # Example
 	///
 	/// ```
+	/// # use cni_plugin::error::CniError;
+	/// # use serde_json::Value;
 	/// CniError::InvalidField {
 	///     field: "ipam.pool",
 	///     expected: "string",

@@ -15,7 +15,6 @@ use thiserror::Error;
 use crate::config::NetworkConfig;
 use crate::error::{CniError, EmptyValueError, RegexValueError};
 use crate::path::CniPath;
-use crate::reply::reply;
 use crate::version::VersionResult;
 
 pub mod config;
@@ -232,7 +231,7 @@ impl Cni {
 		match Self::from_env() {
 			Err(e) => {
 				error!("{}", e);
-				reply(e.into_reply(cni_version))
+				reply::reply(e.into_reply(cni_version))
 			}
 			Ok(Cni::Version(v)) => {
 				let mut supported_versions = SUPPORTED_VERSIONS
@@ -246,7 +245,7 @@ impl Cni {
 					supported_versions.insert(v.clone());
 				}
 
-				reply(VersionResult {
+				reply::reply(VersionResult {
 					cni_version: v,
 					supported_versions: supported_versions.into_iter().collect(),
 				});
