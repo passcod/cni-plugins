@@ -32,7 +32,7 @@ fn main() {
 		debug!("config={:#?}", config);
 
 		match command {
-			Command::Add => std::process::exit(0), //Err(CniError::Generic("TODO".into())),
+			Command::Add => Err(CniError::Generic("TODO".into())),
 			Command::Del => Ok(SuccessReply {
 				cni_version: config.cni_version,
 				interfaces: Default::default(),

@@ -8,7 +8,7 @@
 _A library for writing CNI plugins in Rust, and some plugins built with it._
 
 - Plugins:
-  * [advertise](./advertise), a post-processing plugin to send ARP/NDP advertisements for allocated IPs
+  * ~~[advertise](./advertise), a post-processing plugin to send ARP/NDP advertisements for allocated IPs~~ (WIP)
   * [ipam-delegated](./ipam-delegated), to stack multiple IPAM plugins
   * [ipam-ds-nomad](./ipam-ds-nomad), a **d**elegated IPAM plugin which **s**elects IP configuration from a Nomad job's metadata
   * [ipam-da-consul](./ipam-da-consul), a **d**elegated IPAM plugin which **a**llocates IPs from a pool stored in Consul KV
