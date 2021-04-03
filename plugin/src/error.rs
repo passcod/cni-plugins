@@ -1,3 +1,5 @@
+//! When CNI goes bad.
+
 use std::env::VarError;
 
 use regex::Regex;
@@ -7,73 +9,159 @@ use thiserror::Error;
 
 use crate::reply::ErrorReply;
 
+/// All errors emitted by this library, plus a few others.
 #[derive(Debug, Error)]
 pub enum CniError {
+	/// Catch-all wrapper for I/O errors.
 	#[error(transparent)]
 	Io(#[from] std::io::Error),
 
+	/// Catch-all wrapper for JSON serialization and deserialization.
 	#[error(transparent)]
 	Json(#[from] serde_json::Error),
 
+	/// When the CNI version requested by the runtime is not supported.
+	///
+	/// Also see [`crate::COMPATIBLE_VERSIONS`] and [`crate::SUPPORTED_VERSIONS`].
 	#[error("plugin does not understand CNI version: {0}")]
 	Incompatible(Version),
 
+	/// When nothing is provided on STDIN.
 	#[error("missing input network config")]
 	MissingInput,
 
+	/// When a delegated plugin doesn’t output anything on STDOUT.
 	#[error("missing plugin output")]
 	MissingOutput,
 
+	/// When a required environment variable is missing.
 	#[error("missing environment variable: {var}: {err}")]
 	MissingEnv {
+		/// the variable name
 		var: &'static str,
+
+		/// the underlying error
 		#[source]
 		err: VarError,
 	},
 
+	/// When an environment variable couldn’t be parsed or is invalid.
 	#[error("environment variable has invalid format: {var}: {err}")]
 	InvalidEnv {
+		/// the variable name
 		var: &'static str,
+
+		/// the underlying error
 		#[source]
 		err: Box<dyn std::error::Error>,
 	},
 
+	/// When the current working directory cannot be obtained (for delegation).
 	#[error("cannot obtain current working directory")]
 	NoCwd,
 
+	/// When a delegated plugin cannot be found on `CNI_PATH`.
 	#[error("missing (or not on CNI_PATH) plugin {name}: {err}")]
 	MissingPlugin {
+		/// the name of the plugin binary
 		name: String,
+
+		/// the underlying error
 		#[source]
 		err: which::Error,
 	},
 
+	/// Wrapper for errors in relation to a delegated plugin.
 	#[error("with plugin {plugin}: {err}")]
-	Delegated { plugin: String, err: Box<Self> },
+	Delegated {
+		/// the name of the plugin binary
+		plugin: String,
 
-	// doc: not used in this library, but provided for plugins
+		/// the underlying error
+		err: Box<Self>,
+	},
+
+	/// A generic error as a string.
+	///
+	/// This error variant is not used in the library, but is provided for
+	/// plugin implementations to make use of without needing to make their own
+	/// error type.
+	///
+	/// # Example
+	///
+	/// ```
+	/// CniError::Generic("a total catastrophe".into());
+	/// ```
 	#[error("{0}")]
 	Generic(String),
 
-	// doc: not used in this library, but provided for plugins
+	/// A debug error as anything that implements [`Debug`][std::fmt::Debug].
+	///
+	/// This error variant is not used in the library, but is provided for
+	/// plugin implementations to make use of without needing to make their own
+	/// error type.
+	///
+	/// # Example
+	///
+	/// ```
+	/// CniError::Debug(Box::new(("hello", "world", vec![1, 2, 3])));
+	/// ```
 	#[error("{0:?}")]
 	Debug(Box<dyn std::fmt::Debug>),
 
-	// doc: not used in this library, but provided for plugins
+	/// When a field in configuration is missing.
+	///
+	/// This error variant is not used in the library, but is provided for
+	/// plugin implementations to make use of without needing to make their own
+	/// error type.
+	///
+	/// # Example
+	///
+	/// ```
+	/// CniError::MissingField("ipam.type");
+	/// ```
 	#[error("can't proceed without {0} field")]
 	MissingField(&'static str),
 
-	// doc: not used in this library, but provided for plugins
+	/// When a field in configuration is invalid.
+	///
+	/// This error variant is not used in the library, but is provided for
+	/// plugin implementations to make use of without needing to make their own
+	/// error type.
+	///
+	/// # Example
+	///
+	/// ```
+	/// CniError::InvalidField {
+	///     field: "ipam.pool",
+	///     expected: "string",
+	///     value: Value::Null,
+	/// };
+	/// ```
 	#[error("{field}: expected {expected}, got: {value:?}")]
 	InvalidField {
+		/// the name or path of the invalid field
 		field: &'static str,
+
+		/// the value or type the field was expected to be
 		expected: &'static str,
+
+		/// the actual value or a facsimile thereof
 		value: Value,
 	},
 }
 
 impl CniError {
-	// doc: result as in ErrorResult, not std's Result
+	/// Convert a CniError into an ErrorReply.
+	///
+	/// [`ErrorReply`]s can be used with [`reply`][crate::reply::reply], but
+	/// require `cni_version` to be set to the input configuration’s. This
+	/// method makes it easier to create errors (including with the `?`
+	/// operator, from foreign error types) and only populate the version field
+	/// when ready to send the reply.
+	///
+	/// It’s recommended to add an implementation of this if you make your own
+	/// error type.
 	pub fn into_reply(self, cni_version: Version) -> ErrorReply<'static> {
 		match self {
 			Self::Io(e) => ErrorReply {
@@ -164,10 +252,16 @@ impl CniError {
 	}
 }
 
+/// Underlying error used for an empty value that shouldn’t be.
+///
+/// Used with [`CniError::InvalidEnv`].
 #[derive(Clone, Copy, Debug, Error)]
 #[error("must not be empty")]
 pub struct EmptyValueError;
 
+/// Underlying error used for a value that should match a regex but doesn’t.
+///
+/// Used with [`CniError::InvalidEnv`].
 #[derive(Clone, Debug, Error)]
 #[error("must match regex: {0}")]
 pub struct RegexValueError(pub Regex);
