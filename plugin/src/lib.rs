@@ -15,7 +15,7 @@ use thiserror::Error;
 use crate::config::NetworkConfig;
 use crate::error::{CniError, EmptyValueError, RegexValueError};
 use crate::path::CniPath;
-use crate::version::VersionResult;
+use crate::version::VersionReply;
 
 pub mod config;
 #[cfg(any(feature = "with-smol", feature = "with-tokio"))]
@@ -245,7 +245,7 @@ impl Cni {
 					supported_versions.insert(v.clone());
 				}
 
-				reply::reply(VersionResult {
+				reply::reply(VersionReply {
 					cni_version: v,
 					supported_versions: supported_versions.into_iter().collect(),
 				});
