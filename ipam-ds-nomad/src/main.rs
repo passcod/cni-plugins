@@ -42,7 +42,8 @@ fn main() {
 		} => {
 			let cni_version = config.cni_version.clone(); // for error
 			info!(
-				"ipam-ds-consul serving spec v{} for command=any",
+				"{} serving spec v{} for command=any",
+				env!("CARGO_PKG_NAME"),
 				cni_version
 			);
 

@@ -13,6 +13,7 @@ jobs:
           # - advertise-linux-amd64-gnu
           - ipam-da-consul-linux-amd64-gnu
           - ipam-ds-nomad-linux-amd64-gnu
+          - ipam-ds-static-linux-amd64-gnu
           - ipam-delegated-linux-amd64-gnu
 
         include:
@@ -36,6 +37,12 @@ jobs:
 
           - name: ipam-ds-nomad-linux-amd64-gnu
             plugin: ipam-ds-nomad
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            cross: false
+
+          - name: ipam-ds-static-linux-amd64-gnu
+            plugin: ipam-ds-static
             os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             cross: false

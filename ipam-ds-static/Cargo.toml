@@ -1,0 +1,28 @@
+[package]
+name = "cni-ipam-ds-static"
+version = "0.1.0"
+publish = false
+
+authors = ["Félix Saparelli <felix@passcod.name>"]
+license = "Apache-2.0 OR MIT"
+description = "CNI IPAM delegated plugin to gather pool configuration from the network config"
+keywords = ["cni", "cni-plugin", "ipam"]
+
+documentation = "https://github.com/passcod/cni-plugins/tree/main/ipam-ds-static"
+homepage = "https://github.com/passcod/cni-plugins"
+repository = "https://github.com/passcod/cni-plugins"
+
+edition = "2018"
+
+[[bin]]
+name = "ipam-ds-static"
+path = "src/main.rs"
+
+[dependencies]
+async-std = "1.9.0"
+cni-plugin = { path = "../plugin" }
+log = "0.4.14"
+serde_json = "1.0.62"
+
+[features]
+release-logs = ["cni-plugin/release-logs"]

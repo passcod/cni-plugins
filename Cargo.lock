@@ -374,6 +374,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "cni-ipam-ds-static"
+version = "0.1.0"
+dependencies = [
+ "async-std",
+ "cni-plugin",
+ "log",
+ "serde_json",
+]
+
+[[package]]
 name = "cni-plugin"
 version = "0.1.0"
 dependencies = [
