@@ -11,6 +11,8 @@
 - Introduced a `MacAddr` type which wraps a `macaddr::MacAddr6` but
   (de)serialises correctly to/from string rather than to/from `[u8; 6]`.
 - Compile out trace level logs in release builds for all plugins.
+- Add `install_logger_with_config` to make it possible to filter modules from
+  the log, among other customisations. [#3](https://github.com/passcod/cni-plugins/issues/3)
 
 ## v0.1.0 (2021-04-04)
 

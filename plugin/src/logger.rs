@@ -3,6 +3,8 @@ use std::{
 	path::{Path, PathBuf},
 };
 
+use simplelog::Config;
+
 /// Install the standard logger for plugins.
 ///
 /// This logger always emits `warn` and `error` level messages to STDERR, and
@@ -13,6 +15,8 @@ use std::{
 /// working directory, and otherwise logs to `/var/log/cni/logname.log`,
 /// creating the directory if it does not exist.
 ///
+/// Also see [`install_logger_with_config`], notably to filter off modules.
+///
 /// # Panics
 /// - if the working directory cannot be obtained (in development only);
 /// - if the logging directory cannot be created (in development or with the
@@ -21,6 +25,20 @@ use std::{
 ///   feature only);
 /// - if the logger cannot be installed.
 pub fn install_logger(logname: impl AsRef<Path>) {
+	use simplelog::*;
+
+	let mut config = ConfigBuilder::new();
+	config.set_thread_level(LevelFilter::Info);
+	config.set_target_level(LevelFilter::Info);
+
+	install_logger_with_config(logname, config.build())
+}
+
+/// Install the standard logger for plugins, with configuration.
+///
+/// This logger has identical behaviour to [`install_logger`], but a custom
+/// [`Config`] can be passed in.
+pub fn install_logger_with_config(logname: impl AsRef<Path>, config: Config) {
 	use simplelog::*;
 
 	let mut loggers: Vec<Box<dyn SharedLogger>> = vec![TermLogger::new(
@@ -46,7 +64,7 @@ pub fn install_logger(logname: impl AsRef<Path>) {
 
 		loggers.push(WriteLogger::new(
 			LevelFilter::Debug,
-			Default::default(),
+			config,
 			OpenOptions::new()
 				.append(true)
 				.create(true)
