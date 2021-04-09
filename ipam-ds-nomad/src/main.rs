@@ -17,7 +17,7 @@ mod error;
 mod nomad;
 
 fn main() {
-	cni_plugin::install_logger("ipam-ds-nomad.log");
+	cni_plugin::logger::install(env!("CARGO_PKG_NAME"));
 	debug!(
 		"{} (CNI IPAM delegate plugin) version {}",
 		env!("CARGO_PKG_NAME"),

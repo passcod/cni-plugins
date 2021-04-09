@@ -24,7 +24,7 @@ mod consul;
 mod error;
 
 fn main() {
-	cni_plugin::install_logger("ipam-da-consul.log");
+	cni_plugin::logger::install(env!("CARGO_PKG_NAME"));
 	debug!(
 		"{} (CNI IPAM delegate plugin) version {}",
 		env!("CARGO_PKG_NAME"),

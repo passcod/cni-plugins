@@ -9,7 +9,7 @@ use cni_plugin::{
 use log::{debug, error, info};
 
 fn main() {
-	cni_plugin::install_logger("ipam-ds-static.log");
+	cni_plugin::logger::install(env!("CARGO_PKG_NAME"));
 	debug!(
 		"{} (CNI IPAM delegate plugin) version {}",
 		env!("CARGO_PKG_NAME"),

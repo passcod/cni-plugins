@@ -9,7 +9,7 @@ use log::{debug, error, info};
 use serde_json::{from_value, to_value};
 
 fn main() {
-	cni_plugin::install_logger("ipam-delegated.log");
+	cni_plugin::logger::install(env!("CARGO_PKG_NAME"));
 	debug!(
 		"{} (CNI IPAM plugin) version {}",
 		env!("CARGO_PKG_NAME"),
@@ -26,7 +26,8 @@ fn main() {
 	};
 	let cni_version = config.cni_version.clone(); // for error
 	info!(
-		"ipam-delegated serving spec v{} for command={:?}",
+		"{} serving spec v{} for command={:?}",
+		env!("CARGO_PKG_NAME"),
 		cni_version, command
 	);
 
