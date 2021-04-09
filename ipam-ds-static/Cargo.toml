@@ -21,7 +21,7 @@ path = "src/main.rs"
 [dependencies]
 async-std = "1.9.0"
 cni-plugin = { path = "../plugin" }
-log = "0.4.14"
+log = { version = "0.4.14", features = ["release_max_level_debug"] }
 serde_json = "1.0.62"
 
 [features]

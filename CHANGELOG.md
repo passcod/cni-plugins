@@ -10,6 +10,7 @@
   changed type to `Option<MacAddr>`.
 - Introduced a `MacAddr` type which wraps a `macaddr::MacAddr6` but
   (de)serialises correctly to/from string rather than to/from `[u8; 6]`.
+- Compile out trace level logs in release builds for all plugins.
 
 ## v0.1.0 (2021-04-04)
 
