@@ -17,18 +17,7 @@ fn main() {
 	);
 
 	match Cni::load() {
-		Cni::Add {
-			config,
-			..
-		}
-		| Cni::Del {
-			config,
-			..
-		}
-		| Cni::Check {
-			config,
-			..
-		} => {
+		Cni::Add { config, .. } | Cni::Del { config, .. } | Cni::Check { config, .. } => {
 			let cni_version = config.cni_version.clone(); // for error
 			info!(
 				"{} serving spec v{} for command=any",
@@ -47,10 +36,7 @@ fn main() {
 					.clone();
 
 				let mut specific = HashMap::new();
-				specific.insert(
-					"pools".into(),
-					pools,
-				);
+				specific.insert("pools".into(), pools);
 
 				let ips = if let Some(prev_ipam) =
 					config
