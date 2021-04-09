@@ -4,12 +4,12 @@ use std::{collections::HashMap, io::stdout, net::IpAddr, path::PathBuf, process:
 
 use ipnetwork::IpNetwork;
 use log::debug;
-use macaddr::MacAddr6;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 pub use crate::dns::Dns;
+use crate::macaddr::MacAddr;
 pub use crate::version::VersionReply;
 
 /// Trait for a reply type to be handled by the [`reply()`] function.
@@ -161,7 +161,7 @@ pub struct Interface {
 
 	/// The hardware address of the interface (if applicable).
 	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub mac: Option<MacAddr6>,
+	pub mac: Option<MacAddr>,
 
 	/// The path to the namespace the interface is in.
 	///

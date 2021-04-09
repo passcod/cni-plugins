@@ -32,6 +32,7 @@ pub mod config;
 pub mod delegation;
 pub mod error;
 pub mod ip_range;
+pub mod macaddr;
 pub mod reply;
 
 mod cni;

@@ -5,12 +5,11 @@
 use std::collections::HashMap;
 
 use ipnetwork::IpNetwork;
-use macaddr::MacAddr6;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::ip_range::IpRange;
+use crate::{ip_range::IpRange, macaddr::MacAddr};
 
 pub use crate::dns::Dns;
 
@@ -226,7 +225,7 @@ pub struct RuntimeConfig {
 
 	/// MAC address to use for the interface.
 	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub mac: Option<MacAddr6>,
+	pub mac: Option<MacAddr>,
 
 	/// List of names mapped to the IPs assigned to this interface.
 	#[serde(default, skip_serializing_if = "Vec::is_empty")]
