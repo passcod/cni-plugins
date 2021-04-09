@@ -236,15 +236,21 @@ impl Routing {
 		let mut routes = nlrh.get(ipv).execute();
 
 		debug!("iterating routes");
+		let mut n = 0;
 		while let Some(route) = routes.try_next().await.map_err(nlerror)? {
+			n += 1;
+
+			debug!("route {}: link index={:?}, query={:?}", n, route.output_interface(), link);
 			if route.output_interface() != link {
 				continue;
 			}
 
+			debug!("route {}: prefix={:?}, query={:?}", n, route.destination_prefix(), self.prefix);
 			if route.destination_prefix() != Some((self.prefix.ip(), self.prefix.prefix())) {
 				continue;
 			}
 
+			debug!("route {}: gateway={:?}, query={:?}", n, route.gateway(), self.gateway);
 			if route.gateway() != self.gateway {
 				continue;
 			}
@@ -253,6 +259,7 @@ impl Routing {
 			nlrh.del(route).execute().await.map_err(nlerror)?;
 		}
 
+		debug!("iterated {} routes", n);
 		Ok(())
 	}
 
@@ -260,7 +267,7 @@ impl Routing {
 		if let Some(ref dev) = self.device {
 			let mut linklist = nllh.get().set_name_filter(dev.clone()).execute();
 			if let Some(link) = linklist.try_next().await.map_err(nlerror)? {
-				info!("link: {:?}", link);
+				info!("link: {:?}", link.header);
 				Ok(Some(link.header.index))
 			} else {
 				Err(CniError::Generic(format!(
