@@ -27,7 +27,7 @@ The `neigh` field should contain a [jq](https://stedolan.github.io/jq/) expressi
 - `address` (IP address as string, required): the IP of the neighbour.
 - `device` (string, required): the device name to add the neighbour to.
 - `lladdr` (MAC address as string, optional for `del`): the MAC address of the neighbour.
-- `critical` (boolean, optional): whether failing to apply this should return an error, defaults to `true`.
+- `critical` (boolean, optional): whether failing to add this should return an error, defaults to `true`.
 
 Returning an empty array is acceptable.
 
@@ -35,9 +35,9 @@ The jq expression is invoked with the [network config](https://github.com/contai
 
 ## Output
 
-This plugin takes the `prevResult` if present, or an empty / all-defaults one otherwise, and adds (to) a `hostNeighbours` array containing the Neigh objects returned by the jq expression.
+This plugin takes the `prevResult` if present, or an empty / all-defaults one otherwise, and adds (to) a `hostNeighbours` array containing the Neigh objects returned by the jq expression. Note that this is not supported by `libcni`, which will ignore it, so is useful only as debug at this point.
 
-If non-`critical` actions fail, they will warn, and won't be present in the output, but the plugin will still succeed.
+If deletes or non-`critical` adds fail, they will warn, and won't be present in the output, but the plugin will still succeed.
 
 ## Deletes
 
@@ -48,6 +48,8 @@ The expression will be invoked in the same way, such that the neighbours can be 
 Error and warn logs are always copied to STDERR.
 
 The `verbose` flavour logs at debug level to `/var/log/cni/host-routes.log`.
+This plugin is considerably slower in the verbose flavour, due to the amount of
+logs the netlink layer outputs at debug level.
 
 The logging is suitable for investigating issues in production. Note that log
 messages may span multiple lines and that their format can change at any time.

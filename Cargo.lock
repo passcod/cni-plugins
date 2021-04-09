@@ -350,6 +350,7 @@ version = "0.1.0"
 dependencies = [
  "async-std",
  "cni-plugin",
+ "futures",
  "ipnetwork",
  "jq-rs",
  "log",
