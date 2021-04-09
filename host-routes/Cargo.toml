@@ -21,6 +21,7 @@ path = "src/main.rs"
 [dependencies]
 async-std = { version = "1.9.0", features = ["unstable"] } # unstable=spawn_blocking
 cni-plugin = { path = "../plugin" }
+futures = "0.3.13"
 ipnetwork = "0.17.0"
 jq-rs = { version = "0.4.1", features = ["bundled"] }
 log = { version = "0.4.14", features = ["release_max_level_debug"] }

@@ -5,15 +5,17 @@ use std::{
 
 use async_std::{
 	future::timeout,
-	task::{block_on, spawn_blocking},
+	task::{block_on, spawn, spawn_blocking},
 };
 use cni_plugin::{
 	error::CniError,
 	reply::{reply, SuccessReply},
 	Cni, Command, Inputs,
 };
+use futures::stream::TryStreamExt;
 use ipnetwork::IpNetwork;
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
+use rtnetlink::{IpVersion, LinkHandle, RouteHandle};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -74,16 +76,30 @@ fn main() {
 
 		let routing: Vec<Routing> = serde_json::from_str(&eval)?;
 		info!("got {} routings from jq expression", routing.len());
+		let routing: Vec<_> = routing
+			.into_iter()
+			.map(Routing::validate)
+			.collect::<Result<_, _>>()?;
+
+		debug!("connecting to netlink");
+		let (nlconn, nl, _) = rtnetlink::new_connection()?;
+		spawn(nlconn);
+		let mut nllh = LinkHandle::new(nl.clone());
+		let mut nlrh = RouteHandle::new(nl);
 
 		let mut errors = Vec::with_capacity(routing.len());
 		let mut applied = Vec::with_capacity(routing.len());
+
+		// TODO: apply routes in parallel
 		for route in routing {
+			let link = route.link_index(&mut nllh).await?;
+
 			if let Err(err) = if matches!(command, Command::Del) {
 				debug!("deleting {:?}", route);
-				route.del()
+				route.del(&mut nlrh, link).await
 			} else {
 				debug!("adding {:?}", route);
-				route.add()
+				route.add(&mut nlrh, link).await
 			} {
 				errors.push(err);
 			} else {
@@ -155,13 +171,109 @@ struct Routing {
 }
 
 impl Routing {
-	pub fn add(&self) -> Result<(), CniError> {
-		// TODO: add route, replacing existing entry if present
+	pub fn validate(self) -> Result<Self, CniError> {
+		if self.device.is_none() && self.gateway.is_none() {
+			Err(CniError::Generic(
+				"at least one of device or gateway is required, none provided".into(),
+			))
+		} else {
+			Ok(self)
+		}
+	}
+
+	pub async fn add(&self, nlrh: &mut RouteHandle, link: Option<u32>) -> Result<(), CniError> {
+		debug!("first, attempting to delete route {:?}", self);
+		if let Err(err) = self.del(nlrh, link).await {
+			warn!("pre-emptive delete of route {:?} failed: {}", self, err);
+		}
+
+		debug!("making route add");
+		let mut add = nlrh.add();
+		if let Some(index) = link {
+			debug!("route add: with output interface {}", index);
+			add = add.output_interface(index);
+		}
+
+		match self.prefix {
+			IpNetwork::V4(net) => {
+				debug!("route add: with v4 prefix: {}", net);
+				let mut add = add.v4().destination_prefix(net.ip(), net.prefix());
+
+				if let Some(IpAddr::V4(gw)) = self.gateway {
+					debug!("route add: with gateway {}", gw);
+					add = add.gateway(gw);
+				}
+
+				debug!("route add: execute");
+				add.execute().await.map_err(nlerror)?;
+				debug!("route add: done");
+			}
+			IpNetwork::V6(net) => {
+				debug!("route add: with v6 prefix: {}", net);
+				let mut add = add.v6().destination_prefix(net.ip(), net.prefix());
+
+				if let Some(IpAddr::V6(gw)) = self.gateway {
+					debug!("route add: with gateway {}", gw);
+					add = add.gateway(gw);
+				}
+
+				debug!("route add: execute");
+				add.execute().await.map_err(nlerror)?;
+				debug!("route add: done");
+			}
+		}
+
 		Ok(())
 	}
 
-	pub fn del(&self) -> Result<(), CniError> {
-		// TODO: delete route
+	pub async fn del(&self, nlrh: &mut RouteHandle, link: Option<u32>) -> Result<(), CniError> {
+		let ipv = match self.prefix {
+			IpNetwork::V4(_) => IpVersion::V4,
+			IpNetwork::V6(_) => IpVersion::V6,
+		};
+
+		debug!("getting all {:?} routes", ipv);
+		let mut routes = nlrh.get(ipv).execute();
+
+		debug!("iterating routes");
+		while let Some(route) = routes.try_next().await.map_err(nlerror)? {
+			if route.output_interface() != link {
+				continue;
+			}
+
+			if route.destination_prefix() != Some((self.prefix.ip(), self.prefix.prefix())) {
+				continue;
+			}
+
+			if route.gateway() != self.gateway {
+				continue;
+			}
+
+			info!("deleting found route\n  input interface: {:?}\n  output interface: {:?}\n  source prefix: {:?}\n  dest prefix: {:?}\n  gateway: {:?}", route.input_interface(), route.output_interface(), route.source_prefix(), route.destination_prefix(), route.gateway());
+			nlrh.del(route).execute().await.map_err(nlerror)?;
+		}
+
 		Ok(())
 	}
+
+	pub async fn link_index(&self, nllh: &mut LinkHandle) -> Result<Option<u32>, CniError> {
+		if let Some(ref dev) = self.device {
+			let mut linklist = nllh.get().set_name_filter(dev.clone()).execute();
+			if let Some(link) = linklist.try_next().await.map_err(nlerror)? {
+				info!("link: {:?}", link);
+				Ok(Some(link.header.index))
+			} else {
+				Err(CniError::Generic(format!(
+					"interface not found for route {:?}",
+					self
+				)))
+			}
+		} else {
+			Ok(None)
+		}
+	}
+}
+
+fn nlerror(err: rtnetlink::Error) -> CniError {
+	CniError::Generic(format!("netlink: {}", err))
 }
