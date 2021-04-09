@@ -1,5 +1,5 @@
 [package]
-name = "cni-ipam-ds-nomad"
+name = "ipam-ds-nomad"
 version = "0.1.0"
 publish = false
 
@@ -13,10 +13,6 @@ homepage = "https://github.com/passcod/cni-plugins"
 repository = "https://github.com/passcod/cni-plugins"
 
 edition = "2018"
-
-[[bin]]
-name = "ipam-ds-nomad"
-path = "src/main.rs"
 
 [dependencies]
 async-std = "1.9.0"

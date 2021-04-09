@@ -345,96 +345,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cni-host-neigh"
-version = "0.1.0"
-dependencies = [
- "async-std",
- "cni-plugin",
- "futures",
- "ipnetwork",
- "jq-rs",
- "log",
- "rtnetlink",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "cni-host-routes"
-version = "0.1.0"
-dependencies = [
- "async-std",
- "cni-plugin",
- "futures",
- "ipnetwork",
- "jq-rs",
- "log",
- "rtnetlink",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "cni-ipam-da-consul"
-version = "0.1.0"
-dependencies = [
- "async-std",
- "base64",
- "cni-plugin",
- "ipnetwork",
- "log",
- "semver 0.11.0",
- "serde",
- "serde_json",
- "surf",
- "thiserror",
- "url",
-]
-
-[[package]]
-name = "cni-ipam-delegated"
-version = "0.1.0"
-dependencies = [
- "async-std",
- "base64",
- "cni-plugin",
- "ipnetwork",
- "log",
- "semver 0.11.0",
- "serde",
- "serde_json",
- "surf",
- "thiserror",
-]
-
-[[package]]
-name = "cni-ipam-ds-nomad"
-version = "0.1.0"
-dependencies = [
- "async-std",
- "base64",
- "cni-plugin",
- "ipnetwork",
- "log",
- "semver 0.11.0",
- "serde",
- "serde_json",
- "surf",
- "thiserror",
- "url",
-]
-
-[[package]]
-name = "cni-ipam-ds-static"
-version = "0.1.0"
-dependencies = [
- "async-std",
- "cni-plugin",
- "log",
- "serde_json",
-]
-
-[[package]]
 name = "cni-plugin"
 version = "0.1.0"
 dependencies = [
@@ -848,6 +758,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "host-neigh"
+version = "0.1.0"
+dependencies = [
+ "async-std",
+ "cni-plugin",
+ "futures",
+ "ipnetwork",
+ "jq-rs",
+ "log",
+ "rtnetlink",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "host-routes"
+version = "0.1.0"
+dependencies = [
+ "async-std",
+ "cni-plugin",
+ "futures",
+ "ipnetwork",
+ "jq-rs",
+ "log",
+ "rtnetlink",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "http"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -919,6 +859,66 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61124eeebbd69b8190558df225adf7e4caafce0d743919e5d6b19652314ec5ec"
 dependencies = [
  "cfg-if",
+]
+
+[[package]]
+name = "ipam-da-consul"
+version = "0.1.0"
+dependencies = [
+ "async-std",
+ "base64",
+ "cni-plugin",
+ "ipnetwork",
+ "log",
+ "semver 0.11.0",
+ "serde",
+ "serde_json",
+ "surf",
+ "thiserror",
+ "url",
+]
+
+[[package]]
+name = "ipam-delegated"
+version = "0.1.0"
+dependencies = [
+ "async-std",
+ "base64",
+ "cni-plugin",
+ "ipnetwork",
+ "log",
+ "semver 0.11.0",
+ "serde",
+ "serde_json",
+ "surf",
+ "thiserror",
+]
+
+[[package]]
+name = "ipam-ds-nomad"
+version = "0.1.0"
+dependencies = [
+ "async-std",
+ "base64",
+ "cni-plugin",
+ "ipnetwork",
+ "log",
+ "semver 0.11.0",
+ "serde",
+ "serde_json",
+ "surf",
+ "thiserror",
+ "url",
+]
+
+[[package]]
+name = "ipam-ds-static"
+version = "0.1.0"
+dependencies = [
+ "async-std",
+ "cni-plugin",
+ "log",
+ "serde_json",
 ]
 
 [[package]]

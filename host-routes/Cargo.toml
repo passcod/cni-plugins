@@ -1,5 +1,5 @@
 [package]
-name = "cni-host-routes"
+name = "host-routes"
 version = "0.1.0"
 publish = false
 
@@ -13,10 +13,6 @@ homepage = "https://github.com/passcod/cni-plugins"
 repository = "https://github.com/passcod/cni-plugins"
 
 edition = "2018"
-
-[[bin]]
-name = "host-routes"
-path = "src/main.rs"
 
 [dependencies]
 async-std = { version = "1.9.0", features = ["unstable"] } # unstable=spawn_blocking
