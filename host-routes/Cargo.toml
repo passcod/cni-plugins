@@ -19,11 +19,13 @@ name = "host-routes"
 path = "src/main.rs"
 
 [dependencies]
-async-std = "1.9.0"
+async-std = { version = "1.9.0", features = ["unstable"] } # unstable=spawn_blocking
 cni-plugin = { path = "../plugin" }
 ipnetwork = "0.17.0"
+jq-rs = { version = "0.4.1", features = ["bundled"] }
 log = "0.4.14"
-jq-rs = "0.4.1"
+serde = { version = "1.0.123", features = ["derive"] }
+serde_json = "1.0.62"
 
 # waits on: https://github.com/little-dude/netlink/issues/149
 [dependencies.rtnetlink]
