@@ -9,6 +9,7 @@ use async_std::{
 };
 use cni_plugin::{
 	error::CniError,
+	logger,
 	macaddr::MacAddr,
 	reply::{reply, SuccessReply},
 	Cni, Command, Inputs,
@@ -20,7 +21,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 fn main() {
-	cni_plugin::install_logger(env!("CARGO_PKG_NAME"));
+	let mut logconfig = logger::default_config();
+	logconfig.add_filter_ignore_str("netlink_proto");
+	logger::with_config(env!("CARGO_PKG_NAME"), logconfig.build());
+
 	debug!(
 		"{} (CNI post plugin) version {}",
 		env!("CARGO_PKG_NAME"),
