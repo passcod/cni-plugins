@@ -92,6 +92,8 @@ pub struct SuccessReply {
 	pub dns: Dns,
 
 	/// Custom reply fields.
+	///
+	/// Note that these are off-spec and may be discarded by libcni.
 	#[serde(flatten)]
 	pub specific: HashMap<String, Value>,
 }
@@ -146,6 +148,8 @@ pub struct IpamSuccessReply {
 	pub dns: Dns,
 
 	/// Custom reply fields.
+	///
+	/// Note that these are off-spec and may be discarded by libcni.
 	#[serde(flatten)]
 	pub specific: HashMap<String, Value>,
 }

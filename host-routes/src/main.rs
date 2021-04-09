@@ -7,10 +7,15 @@ use async_std::{
 	future::timeout,
 	task::{block_on, spawn_blocking},
 };
-use cni_plugin::{Cni, Command, Inputs, error::CniError, reply::{reply, SuccessReply}};
+use cni_plugin::{
+	error::CniError,
+	reply::{reply, SuccessReply},
+	Cni, Command, Inputs,
+};
 use ipnetwork::IpNetwork;
 use log::{debug, error, info};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 fn main() {
 	cni_plugin::install_logger(env!("CARGO_PKG_NAME"));
@@ -102,12 +107,21 @@ fn main() {
 					specific: Default::default(),
 				});
 
-			if let Some(routes) = reply
+			let existing_routes = reply
 				.specific
-				.get_mut("hostRoutes")
-				.and_then(|val| val.as_array_mut())
-			{
-				routes.extend(applied);
+				.entry("hostRoutes".into())
+				.or_insert_with(|| Value::Array(Vec::new()));
+
+			if let Some(r) = existing_routes.as_array_mut() {
+				debug!("existing host routes: {:?}", r);
+				info!("returning {} applied routes", applied.len());
+				r.extend(applied);
+			} else {
+				return Err(CniError::InvalidField {
+					field: "prevResult.hostRoutes",
+					expected: "array",
+					value: existing_routes.clone(),
+				});
 			}
 
 			Ok(reply)

@@ -34,7 +34,7 @@ The jq expression is invoked with the [network config](https://github.com/contai
 
 ## Output
 
-This plugin takes the `prevResult` if present, or an empty / all-defaults one otherwise, and adds (to) a `hostRoutes` array containing the Routing objects returned by the jq expression.
+This plugin takes the `prevResult` if present, or an empty / all-defaults one otherwise, and adds (to) a `hostRoutes` array containing the Routing objects returned by the jq expression. Note that this is not supported by `libcni`, which will ignore it, so is useful only as debug at this point.
 
 ## Deletes
 
