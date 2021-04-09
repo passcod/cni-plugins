@@ -1,9 +1,12 @@
+//! The standard logger and utilities.
+
 use std::{
 	fs::OpenOptions,
 	path::{Path, PathBuf},
 };
 
-use simplelog::Config;
+use log::LevelFilter;
+use simplelog::{Config, ConfigBuilder};
 
 /// Install the standard logger for plugins.
 ///
@@ -15,7 +18,7 @@ use simplelog::Config;
 /// working directory, and otherwise logs to `/var/log/cni/logname.log`,
 /// creating the directory if it does not exist.
 ///
-/// Also see [`install_logger_with_config`], notably to filter off modules.
+/// Also see [`with_config`], notably to filter off modules.
 ///
 /// # Panics
 /// - if the working directory cannot be obtained (in development only);
@@ -24,21 +27,27 @@ use simplelog::Config;
 /// - if the logfile cannot be opened (in development or with the release-logs
 ///   feature only);
 /// - if the logger cannot be installed.
-pub fn install_logger(logname: impl AsRef<Path>) {
-	use simplelog::*;
+pub fn install(logname: impl AsRef<Path>) {
+	with_config(logname, default_config().build())
+}
 
+/// The default configuration for the standard logger, as a builder.
+///
+/// Note that the default logger configuration is not stable.
+pub fn default_config() -> ConfigBuilder {
 	let mut config = ConfigBuilder::new();
 	config.set_thread_level(LevelFilter::Info);
 	config.set_target_level(LevelFilter::Info);
-
-	install_logger_with_config(logname, config.build())
+	config
 }
 
 /// Install the standard logger for plugins, with configuration.
 ///
-/// This logger has identical behaviour to [`install_logger`], but a custom
+/// This logger has identical behaviour to [`install`], but a custom
 /// [`Config`] can be passed in.
-pub fn install_logger_with_config(logname: impl AsRef<Path>, config: Config) {
+///
+/// Also see [`default_config`] to obtain the default config _builder_.
+pub fn with_config(logname: impl AsRef<Path>, config: Config) {
 	use simplelog::*;
 
 	let mut loggers: Vec<Box<dyn SharedLogger>> = vec![TermLogger::new(
