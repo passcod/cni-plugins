@@ -47,8 +47,6 @@ Failure to remove one route will not prevent the following ones from being remov
 Error and warn logs are always copied to STDERR.
 
 The `verbose` flavour logs at debug level to `/var/log/cni/host-routes.log`.
-This plugin is considerably slower in the verbose flavour, due to the amount of
-logs the netlink layer outputs at debug level.
 
 The logging is suitable for investigating issues in production. Note that log
 messages may span multiple lines and that their format can change at any time.
