@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "plugin",
+  "host-neigh",
   "host-routes",
   "ipam-delegated",
   "ipam-da-consul",
