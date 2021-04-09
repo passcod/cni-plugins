@@ -218,17 +218,17 @@ impl Neigh {
 		};
 
 		debug!("getting all {:?} neighbours", ipv);
-		let mut neighs = nlnh
-			.get()
-			.set_family(ipv)
-			.execute();
+		let mut neighs = nlnh.get().set_family(ipv).execute();
 
 		debug!("iterating neighbours");
 		let mut n = 0;
 		while let Some(neigh) = neighs.try_next().await.map_err(nlerror)? {
 			n += 1;
 
-			debug!("neigh {}: link index={}, query={}", n, neigh.header.ifindex, link);
+			debug!(
+				"neigh {}: link index={}, query={}",
+				n, neigh.header.ifindex, link
+			);
 			if neigh.header.ifindex != link {
 				continue;
 			}
@@ -278,12 +278,12 @@ impl Neigh {
 					if &v4.octets()[..] != dest {
 						continue;
 					}
-				},
+				}
 				IpAddr::V6(v6) => {
 					if &v6.octets()[..] != dest {
 						continue;
 					}
-				},
+				}
 			}
 
 			info!("deleting found neighbour {:?}", neigh);

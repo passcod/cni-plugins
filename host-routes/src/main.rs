@@ -240,17 +240,32 @@ impl Routing {
 		while let Some(route) = routes.try_next().await.map_err(nlerror)? {
 			n += 1;
 
-			debug!("route {}: link index={:?}, query={:?}", n, route.output_interface(), link);
+			debug!(
+				"route {}: link index={:?}, query={:?}",
+				n,
+				route.output_interface(),
+				link
+			);
 			if route.output_interface() != link {
 				continue;
 			}
 
-			debug!("route {}: prefix={:?}, query={:?}", n, route.destination_prefix(), self.prefix);
+			debug!(
+				"route {}: prefix={:?}, query={:?}",
+				n,
+				route.destination_prefix(),
+				self.prefix
+			);
 			if route.destination_prefix() != Some((self.prefix.ip(), self.prefix.prefix())) {
 				continue;
 			}
 
-			debug!("route {}: gateway={:?}, query={:?}", n, route.gateway(), self.gateway);
+			debug!(
+				"route {}: gateway={:?}, query={:?}",
+				n,
+				route.gateway(),
+				self.gateway
+			);
 			if route.gateway() != self.gateway {
 				continue;
 			}
