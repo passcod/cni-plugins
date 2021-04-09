@@ -1,7 +1,7 @@
 [workspace]
 members = [
   "plugin",
-  "advertise",
+  "host-routes",
   "ipam-delegated",
   "ipam-da-consul",
   "ipam-ds-nomad",

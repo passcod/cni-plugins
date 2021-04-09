@@ -7,7 +7,7 @@ use cni_plugin::{
 use log::{debug, error, info};
 
 fn main() {
-	cni_plugin::install_logger("advertise.log");
+	cni_plugin::install_logger(env!("CARGO_PKG_NAME"));
 	debug!(
 		"{} (CNI post plugin) version {}",
 		env!("CARGO_PKG_NAME"),
@@ -24,7 +24,8 @@ fn main() {
 	};
 	let cni_version = config.cni_version.clone(); // for error
 	info!(
-		"advertise serving spec v{} for command={:?}",
+		"{} serving spec v{} for command={:?}",
+		env!("CARGO_PKG_NAME"),
 		cni_version, command
 	);
 

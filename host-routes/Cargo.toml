@@ -1,0 +1,36 @@
+[package]
+name = "cni-host-routes"
+version = "0.1.0"
+publish = false
+
+authors = ["Félix Saparelli <felix@passcod.name>"]
+license = "Apache-2.0 OR MIT"
+description = "CNI post-processing plugin to add routes to the host"
+keywords = ["cni", "cni-plugin", "routing", "jq"]
+
+documentation = "https://github.com/passcod/cni-plugins/tree/main/host-routes"
+homepage = "https://github.com/passcod/cni-plugins"
+repository = "https://github.com/passcod/cni-plugins"
+
+edition = "2018"
+
+[[bin]]
+name = "host-routes"
+path = "src/main.rs"
+
+[dependencies]
+async-std = "1.9.0"
+cni-plugin = { path = "../plugin" }
+ipnetwork = "0.17.0"
+log = "0.4.14"
+jq-rs = "0.4.1"
+
+# waits on: https://github.com/little-dude/netlink/issues/149
+[dependencies.rtnetlink]
+version = "0.7.0"
+git = "https://github.com/little-dude/netlink"
+default-features = false
+features = ["smol_socket"]
+
+[features]
+release-logs = ["cni-plugin/release-logs"]
