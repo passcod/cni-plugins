@@ -19,6 +19,7 @@ To configure, add this plugin after other plugins. Where it goes will depend on 
 {
   "type": "host-routes",
   "neigh": "expression",
+  "tries": 3,
 }
 ```
 
@@ -27,17 +28,17 @@ The `neigh` field should contain a [jq](https://stedolan.github.io/jq/) expressi
 - `address` (IP address as string, required): the IP of the neighbour.
 - `device` (string, required): the device name to add the neighbour to.
 - `lladdr` (MAC address as string, optional for `del`): the MAC address of the neighbour.
-- `critical` (boolean, optional): whether failing to add this should return an error, defaults to `true`.
 
 Returning an empty array is acceptable.
 
 The jq expression is invoked with the [network config](https://github.com/containernetworking/cni/blob/master/SPEC.md#section-1-network-configuration-format) as input, and is limited to 1 second running time.
 
+`tries` defines how many times failing actions will be retried. Defaults to 3,
+caps out at 10, setting to 0 or an invalid value will use the default.
+
 ## Output
 
 This plugin takes the `prevResult` if present, or an empty / all-defaults one otherwise, and adds (to) a `hostNeighbours` array containing the Neigh objects returned by the jq expression. Note that this is not supported by `libcni`, which will ignore it, so is useful only as debug at this point.
-
-If deletes or non-`critical` adds fail, they will warn, and won't be present in the output, but the plugin will still succeed.
 
 ## Deletes
 

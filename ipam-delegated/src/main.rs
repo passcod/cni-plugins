@@ -28,7 +28,8 @@ fn main() {
 	info!(
 		"{} serving spec v{} for command={:?}",
 		env!("CARGO_PKG_NAME"),
-		cni_version, command
+		cni_version,
+		command
 	);
 
 	let res: Result<IpamSuccessReply, CniError> = block_on(async move {
