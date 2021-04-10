@@ -52,7 +52,7 @@ pub fn with_config(logname: impl AsRef<Path>, config: Config) {
 
 	let mut loggers: Vec<Box<dyn SharedLogger>> = vec![TermLogger::new(
 		LevelFilter::Warn,
-		Default::default(),
+		config.clone(),
 		TerminalMode::Stderr,
 		ColorChoice::Never,
 	)];
