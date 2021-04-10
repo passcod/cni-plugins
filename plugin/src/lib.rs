@@ -30,7 +30,7 @@
 //!
 //! let Inputs {
 //!     command, container_id, ifname, netns, path, config
-//! } = match Cni::load().into_inputs().unwrap();
+//! } = Cni::load().into_inputs().unwrap();
 //! ```
 
 pub use cni::Cni;
