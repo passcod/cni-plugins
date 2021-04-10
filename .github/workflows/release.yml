@@ -10,49 +10,49 @@ jobs:
     strategy:
       matrix:
         name:
-          - host-neigh-linux-amd64-gnu
-          - host-routes-linux-amd64-gnu
-          - ipam-da-consul-linux-amd64-gnu
-          - ipam-delegated-linux-amd64-gnu
-          - ipam-ds-nomad-linux-amd64-gnu
-          - ipam-ds-static-linux-amd64-gnu
+        - host-neigh-linux-amd64-gnu
+        - host-routes-linux-amd64-gnu
+        - ipam-da-consul-linux-amd64-gnu
+        - ipam-delegated-linux-amd64-gnu
+        - ipam-ds-nomad-linux-amd64-gnu
+        - ipam-ds-static-linux-amd64-gnu
 
         include:
         - name: host-neigh-linux-amd64-gnu
-            plugin: host-neigh
-            os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            cross: false
+          plugin: host-neigh
+          os: ubuntu-latest
+          target: x86_64-unknown-linux-gnu
+          cross: false
 
         - name: host-routes-linux-amd64-gnu
-            plugin: host-routes
-            os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            cross: false
+          plugin: host-routes
+          os: ubuntu-latest
+          target: x86_64-unknown-linux-gnu
+          cross: false
 
         - name: ipam-da-consul-linux-amd64-gnu
-            plugin: ipam-da-consul
-            os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            cross: false
+          plugin: ipam-da-consul
+          os: ubuntu-latest
+          target: x86_64-unknown-linux-gnu
+          cross: false
 
-          - name: ipam-delegated-linux-amd64-gnu
-            plugin: ipam-delegated
-            os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            cross: false
+        - name: ipam-delegated-linux-amd64-gnu
+          plugin: ipam-delegated
+          os: ubuntu-latest
+          target: x86_64-unknown-linux-gnu
+          cross: false
 
-          - name: ipam-ds-nomad-linux-amd64-gnu
-            plugin: ipam-ds-nomad
-            os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            cross: false
+        - name: ipam-ds-nomad-linux-amd64-gnu
+          plugin: ipam-ds-nomad
+          os: ubuntu-latest
+          target: x86_64-unknown-linux-gnu
+          cross: false
 
-          - name: ipam-ds-static-linux-amd64-gnu
-            plugin: ipam-ds-static
-            os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            cross: false
+        - name: ipam-ds-static-linux-amd64-gnu
+          plugin: ipam-ds-static
+          os: ubuntu-latest
+          target: x86_64-unknown-linux-gnu
+          cross: false
 
     name: Release ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
