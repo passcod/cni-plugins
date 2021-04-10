@@ -12,14 +12,25 @@
 //! # Quick start
 //!
 //! ```no_run
-//! use cni_plugin::{Cni, install_logger};
-//! install_logger("hello-world.log");
+//! use cni_plugin::{Cni, logger};
+//! logger::install(env!("CARGO_PKG_NAME"));
 //! match Cni::load() {
 //!     Cni::Add { container_id, ifname, netns, path, config } => {}
 //!     Cni::Del { container_id, ifname, netns, path, config } => {}
 //!     Cni::Check { container_id, ifname, netns, path, config } => {}
 //!     Cni::Version(_) => unreachable!()
 //! }
+//! ```
+//!
+//! or:
+//!
+//! ```no_run
+//! use cni_plugin::{Cni, Inputs, logger};
+//! logger::install(env!("CARGO_PKG_NAME"));
+//!
+//! let Inputs {
+//!     command, container_id, ifname, netns, path, config
+//! } = match Cni::load().into_inputs().unwrap();
 //! ```
 
 pub use cni::Cni;
