@@ -1,11 +1,12 @@
 use std::{
+	convert::TryFrom,
 	net::IpAddr,
 	time::{Duration, Instant},
 };
 
 use async_std::{
 	future::timeout,
-	task::{block_on, spawn, spawn_blocking},
+	task::{block_on, sleep, spawn, spawn_blocking},
 };
 use cni_plugin::{
 	error::CniError,
@@ -13,10 +14,13 @@ use cni_plugin::{
 	reply::{reply, SuccessReply},
 	Cni, Command, Inputs,
 };
-use futures::stream::TryStreamExt;
+use futures::{
+	stream::{FuturesOrdered, TryStreamExt},
+	StreamExt,
+};
 use ipnetwork::IpNetwork;
 use log::{debug, error, info, warn};
-use rtnetlink::{IpVersion, LinkHandle, RouteHandle};
+use rtnetlink::{Handle, IpVersion, LinkHandle, RouteHandle};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -49,6 +53,14 @@ fn main() {
 			return Err(CniError::Generic("TODO".into()));
 		}
 
+		let tries = config
+			.specific
+			.get("neigh")
+			.and_then(|val| val.as_u64())
+			.and_then(|n| u8::try_from(n).ok())
+			.map(|n| if n == 0 || n > 10 { 10 } else { n })
+			.unwrap_or(3);
+
 		let expr = config
 			.specific
 			.get("routing")
@@ -78,82 +90,72 @@ fn main() {
 		info!("ran jq expression in {:?}", pre.elapsed());
 		debug!("jq eval={:?}", eval);
 
+		debug!("initialising netlink");
+		let (nlconn, nl, _) = rtnetlink::new_connection()?;
+
 		let routing: Vec<Routing> = serde_json::from_str(&eval)?;
 		info!("got {} routings from jq expression", routing.len());
-		let routing: Vec<_> = routing
+		let trials: Vec<_> = routing
 			.into_iter()
-			.map(Routing::validate)
+			.map(|n| Trial::new(n, nl.clone(), command, tries))
 			.collect::<Result<_, _>>()?;
 
-		debug!("connecting to netlink");
-		let (nlconn, nl, _) = rtnetlink::new_connection()?;
+		debug!("starting netlink connection task");
 		spawn(nlconn);
-		let mut nllh = LinkHandle::new(nl.clone());
-		let mut nlrh = RouteHandle::new(nl);
 
-		let mut errors = Vec::with_capacity(routing.len());
-		let mut applied = Vec::with_capacity(routing.len());
+		let mut outcomes = trials
+			.into_iter()
+			.map(Trial::run)
+			.collect::<FuturesOrdered<_>>()
+			.collect::<Vec<Trial>>()
+			.await;
 
-		// TODO: apply routes in parallel
-		for route in routing {
-			let link = route.link_index(&mut nllh).await?;
-
-			if let Err(err) = if matches!(command, Command::Del) {
-				debug!("deleting {:?}", route);
-				route.del(&mut nlrh, link).await
-			} else {
-				debug!("adding {:?}", route);
-				route.add(&mut nlrh, link).await
-			} {
-				errors.push(err);
-			} else {
-				info!("applied route to {}", route.prefix);
-				applied.push(serde_json::to_value(route)?);
-			}
+		let error = outcomes
+			.iter_mut()
+			.filter_map(|t| t.last_error.take().map(|e| e.to_string()))
+			.collect::<Vec<String>>()
+			.join("\n");
+		if !error.is_empty() {
+			return Err(CniError::Generic(error));
 		}
 
-		if errors.is_empty() {
-			let cni_version = config.cni_version.clone();
-			let mut reply = config
-				.prev_result
-				.map(|val| serde_json::from_value(val).map_err(CniError::Json))
-				.transpose()?
-				.unwrap_or_else(|| SuccessReply {
-					cni_version,
-					interfaces: Default::default(),
-					ips: Default::default(),
-					routes: Default::default(),
-					dns: Default::default(),
-					specific: Default::default(),
-				});
+		let cni_version = config.cni_version.clone();
+		let mut reply = config
+			.prev_result
+			.map(|val| serde_json::from_value(val).map_err(CniError::Json))
+			.transpose()?
+			.unwrap_or_else(|| SuccessReply {
+				cni_version,
+				interfaces: Default::default(),
+				ips: Default::default(),
+				routes: Default::default(),
+				dns: Default::default(),
+				specific: Default::default(),
+			});
 
-			let existing_routes = reply
-				.specific
-				.entry("hostRoutes".into())
-				.or_insert_with(|| Value::Array(Vec::new()));
+		let existing_routes = reply
+			.specific
+			.entry("hostRoutes".into())
+			.or_insert_with(|| Value::Array(Vec::new()));
 
-			if let Some(r) = existing_routes.as_array_mut() {
-				debug!("existing host routes: {:?}", r);
-				info!("returning {} applied routes", applied.len());
-				r.extend(applied);
-			} else {
-				return Err(CniError::InvalidField {
-					field: "prevResult.hostRoutes",
-					expected: "array",
-					value: existing_routes.clone(),
-				});
-			}
-
-			Ok(reply)
+		if let Some(r) = existing_routes.as_array_mut() {
+			debug!("existing host routes: {:?}", r);
+			info!("returning {} applied routes", outcomes.len());
+			r.extend(
+				outcomes
+					.into_iter()
+					.map(|o| serde_json::to_value(o.route))
+					.collect::<Result<Vec<Value>, _>>()?,
+			);
 		} else {
-			Err(CniError::Generic(
-				errors
-					.iter()
-					.map(|e| e.to_string())
-					.collect::<Vec<String>>()
-					.join("\n"),
-			))
+			return Err(CniError::InvalidField {
+				field: "prevResult.hostRoutes",
+				expected: "array",
+				value: existing_routes.clone(),
+			});
 		}
+
+		Ok(reply)
 	});
 
 	match res {
@@ -162,6 +164,78 @@ fn main() {
 			error!("error: {}", res);
 			reply(res.into_reply(cni_version))
 		}
+	}
+}
+
+#[derive(Debug)]
+struct Trial {
+	pub netlink: Handle,
+	pub command: Command,
+	pub route: Routing,
+	pub tries: u8,
+	pub link: Option<Option<u32>>,
+	pub last_error: Option<CniError>,
+}
+
+impl Trial {
+	pub fn new(
+		route: Routing,
+		netlink: Handle,
+		command: Command,
+		tries: u8,
+	) -> Result<Self, CniError> {
+		Ok(Self {
+			netlink,
+			command,
+			route: route.validate()?,
+			tries,
+			link: None,
+			last_error: None,
+		})
+	}
+
+	pub async fn run(mut self) -> Self {
+		for _ in 0..self.tries {
+			if let Err(err) = self.try_once().await {
+				self.last_error = Some(err);
+
+				let nap = Duration::from_millis(50);
+				warn!(
+					"got an error applying {:?}, waiting {:?} before next try",
+					self.route, nap
+				);
+				sleep(nap).await;
+			} else {
+				break;
+			}
+		}
+
+		self
+	}
+
+	async fn try_once(&mut self) -> Result<(), CniError> {
+		let mut nllh = LinkHandle::new(self.netlink.clone());
+		let mut nlrh = RouteHandle::new(self.netlink.clone());
+
+		let link = if let Some(link) = self.link {
+			link
+		} else {
+			let link = self.route.link_index(&mut nllh).await?;
+			self.link = Some(link);
+			link
+		};
+
+		if matches!(self.command, Command::Del) {
+			debug!("deleting {:?}", self.route);
+			self.route.del(&mut nlrh, link).await?;
+			info!("deleted route to {}", self.route.prefix);
+		} else {
+			debug!("adding {:?}", self.route);
+			self.route.add(&mut nlrh, link).await?;
+			info!("added route to {}", self.route.prefix);
+		}
+
+		Ok(())
 	}
 }
 
