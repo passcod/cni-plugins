@@ -9,11 +9,13 @@ _This is a CNI plugin. To learn more about CNI, see [cni.dev](https://cni.dev)._
 
 ## Overview
 
-`host-neigh` manages neighbour entries on the host based on the outputs of previous plugins or its own config.
+`host-neigh` manages neighbour entries on the host based on the outputs of
+previous plugins or its own config.
 
 ## Configuration
 
-To configure, add this plugin after other plugins. Where it goes will depend on what you want it to do.
+To configure, add this plugin after other plugins. Where it goes will depend on
+what you want it to do.
 
 ```json
 {
@@ -23,26 +25,36 @@ To configure, add this plugin after other plugins. Where it goes will depend on 
 }
 ```
 
-The `neigh` field should contain a [jq](https://stedolan.github.io/jq/) expression as a string, which should evaluate to an array of Neigh objects, with these fields:
+The `neigh` field should contain a [jq] expression as a string, which should
+evaluate to an array of Neigh objects, with these fields:
 
 - `address` (IP address as string, required): the IP of the neighbour.
 - `device` (string, required): the device name to add the neighbour to.
-- `lladdr` (MAC address as string, optional for `del`): the MAC address of the neighbour.
+- `lladdr` (MAC address as string, optional for `del`): the MAC address of the
+  neighbour.
 
 Returning an empty array is acceptable.
 
-The jq expression is invoked with the [network config](https://github.com/containernetworking/cni/blob/master/SPEC.md#section-1-network-configuration-format) as input, and is limited to 1 second running time.
+The jq expression is invoked with the [network config] as input, and is limited
+to 1 second running time.
 
 `tries` defines how many times failing actions will be retried. Defaults to 3,
 caps out at 10, setting to 0 or an invalid value will use the default.
 
+[jq]: https://stedolan.github.io/jq/
+[network config]: https://github.com/containernetworking/cni/blob/master/SPEC.md#section-1-network-configuration-format
+
 ## Output
 
-This plugin takes the `prevResult` if present, or an empty / all-defaults one otherwise, and adds (to) a `hostNeighbours` array containing the Neigh objects returned by the jq expression. Note that this is not supported by `libcni`, which will ignore it, so is useful only as debug at this point.
+This plugin takes the `prevResult` if present, or an empty / all-defaults one
+otherwise, and adds (to) a `hostNeighbours` array containing the Neigh objects
+returned by the jq expression. Note that this is not supported by `libcni`,
+which will ignore it, so is useful only as debug at this point.
 
 ## Deletes
 
-The expression will be invoked in the same way, such that the neighbours can be cleaned up.
+The expression will be invoked in the same way, such that the neighbours can be
+cleaned up.
 
 ## Log file
 

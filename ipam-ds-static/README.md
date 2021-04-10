@@ -18,7 +18,8 @@ It does the same thing regardless of CNI command.
 ## Configuration
 
 To configure, set this plugin as an IPAM delegate in your network configuration
-before the allocation delegate, and add the relevant pool settings to your network configuration:
+before the allocation delegate, and add the relevant pool settings to your
+network configuration:
 
 ```json
 {
@@ -52,7 +53,8 @@ The `ipam.pools` array should likely contain Pool objects, as described:
 ## Output
 
 This delegate returns an empty (well, all-defaults) IPAM abbreviated success
-result, with an additional key `pools` set to the contents of the `ipam.pools` array.
+result, with an additional key `pools` set to the contents of the `ipam.pools`
+array.
 
 If the input's `prevResult` is an IPAM success result, and it includes `ips`,
 those are copied over to the output. (Makes deletes work.)

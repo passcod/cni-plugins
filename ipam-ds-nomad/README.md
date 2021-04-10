@@ -138,7 +138,7 @@ The plugin errors when:
 - the nomad alloc for the CNI container ID does not exist.
 - the group in the alloc job definition does not exist.
 - the group doesn't have a network block.
-- the first network block in the group's `mode` field does not start with `cni/`.
+- the first network block in a group's `mode` field does not start with `cni/`.
 - the group doesn't have a meta block.
 - the meta doesn't contain the `network-pool` key, or it's not a string.
 - the `network-ip` key, if it exists, is not a string.

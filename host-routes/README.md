@@ -9,20 +9,24 @@ _This is a CNI plugin. To learn more about CNI, see [cni.dev](https://cni.dev)._
 
 ## Overview
 
-`host-routes` manages routes on the host based on the outputs of previous plugins or its own config.
+`host-routes` manages routes on the host based on the outputs of previous
+plugins or its own config.
 
 ## Configuration
 
-To configure, add this plugin after other plugins. Where it goes will depend on what you want it to do.
+To configure, add this plugin after other plugins. Where it goes will depend on
+what you want it to do.
 
 ```json
 {
   "type": "host-routes",
   "routing": "expression",
+  "tries": 3,
 }
 ```
 
-The `routing` field should contain a [jq](https://stedolan.github.io/jq/) expression as a string, which should evaluate to an array of Routing objects, with these fields:
+The `routing` field should contain a [jq] expression as a string, which should
+evaluate to an array of Routing objects, with these fields:
 
 - `prefix` (IP address/subnet as string, required): the routing prefix.
 - `device` (string, optional): the device name to route to.
@@ -30,17 +34,29 @@ The `routing` field should contain a [jq](https://stedolan.github.io/jq/) expres
 
 Returning an empty array is acceptable.
 
-The jq expression is invoked with the [network config](https://github.com/containernetworking/cni/blob/master/SPEC.md#section-1-network-configuration-format) as input, and is limited to 1 second running time.
+The jq expression is invoked with the [network config] as input, and is limited
+to 1 second running time.
+
+`tries` defines how many times failing actions will be retried. Defaults to 3,
+caps out at 10, setting to 0 or an invalid value will use the default.
+
+[jq]: https://stedolan.github.io/jq/
+[network config]: https://github.com/containernetworking/cni/blob/master/SPEC.md#section-1-network-configuration-format
 
 ## Output
 
-This plugin takes the `prevResult` if present, or an empty / all-defaults one otherwise, and adds (to) a `hostRoutes` array containing the Routing objects returned by the jq expression. Note that this is not supported by `libcni`, which will ignore it, so is useful only as debug at this point.
+This plugin takes the `prevResult` if present, or an empty / all-defaults one
+otherwise, and adds (to) a `hostRoutes` array containing the Routing objects
+returned by the jq expression. Note that this is not supported by `libcni`,
+which will ignore it, so is useful only as debug at this point.
 
 ## Deletes
 
-The expression will be invoked in the same way, and should return the same things, such that the routes can be cleaned up.
+The expression will be invoked in the same way, and should return the same
+things, such that the routes can be cleaned up.
 
-Failure to remove one route will not prevent the following ones from being removed, but will still return an error.
+Failure to remove one route will not prevent the following ones from being
+removed, but will still return an error.
 
 ## Log file
 

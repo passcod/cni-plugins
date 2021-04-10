@@ -11,9 +11,12 @@ _A library for writing CNI plugins in Rust, and some plugins built with it._
   * [host-routes](./host-routes), to add routes to the host
   * [host-neigh](./host-neigh), to add neighbours to the host
   * [ipam-delegated](./ipam-delegated), to stack multiple IPAM plugins
-  * [ipam-ds-nomad](./ipam-ds-nomad), a **d**elegated IPAM plugin which **s**elects IP pool configuration from a Nomad job's metadata
-  * [ipam-ds-static](./ipam-ds-static), a **d**elegated IPAM plugin which **s**elects IP pool configuration from the network configuration
-  * [ipam-da-consul](./ipam-da-consul), a **d**elegated IPAM plugin which **a**llocates IPs from a pool stored in Consul KV
+  * [ipam-ds-nomad](./ipam-ds-nomad), a **d**elegated IPAM plugin which
+    **s**elects IP pool configuration from a Nomad job's metadata
+  * [ipam-ds-static](./ipam-ds-static), a **d**elegated IPAM plugin which
+    **s**elects IP pool configuration from the network configuration
+  * [ipam-da-consul](./ipam-da-consul), a **d**elegated IPAM plugin which
+    **a**llocates IPs from a pool stored in Consul KV
 - Guides:
   * [Standard tooling](./docs/Standard-Tooling.md)
   * [Hello world plugin](./docs/Plugin-Hello-World.md)
@@ -27,8 +30,8 @@ _A library for writing CNI plugins in Rust, and some plugins built with it._
 ## Obtain plugins
 
 Note that these plugins should not be considered solid implementations. They
-work, and I use them, and eventually they'll surely evolve into robust software,
-but for now consider them beta quality, and alpha stability.
+work, and I use them, and eventually they'll surely evolve into robust
+software, but for now consider them beta quality, and alpha stability.
 
 ### Flavours
 
@@ -47,11 +50,13 @@ Logs are appended to `/var/log/cni/name-of-plugin.log` in production, and to
 
 The [release tab on GitHub](https://github.com/passcod/noodle/releases).
 
-Builds are available for a variety of platforms depending on support per plugin.
+Builds are available for x86-64 Linux, but adding architectures is often
+trivial, so please ask if needed.
 
 ### From source
 
-Clone this repo, [install the Rust toolchain](https://rustup.rs), and build with:
+Clone this repo, [install the Rust toolchain](https://rustup.rs), and build
+with:
 
 ```bash
 # Standard production binary

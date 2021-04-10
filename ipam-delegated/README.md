@@ -182,8 +182,8 @@ The delegates shown are fictional.
 
     (If it fails to execute or returns with an error result: ipam-delegated
     attempts to run again with the `DEL` command: 1/ the `ipam-ds-hello`
-    delegate, with the prevResult it gave the `ipam-da-world` delegate, then 2/ the
-    `ipam-da-world` delegate with the prevResult _that_ DEL returns.)
+    delegate, with the prevResult it gave the `ipam-da-world` delegate, then 2/
+    the `ipam-da-world` delegate with the prevResult _that_ DEL returns.)
 
  7. The ipam-delegated plugin returns that exact same result.
 
