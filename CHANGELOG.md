@@ -2,6 +2,8 @@
 
 ## Next (YYYY-MM-DD)
 
+## v0.2.0 (2021-04-10)
+
 - Remove WIP advertise plugin.
 - Add host-routes plugin.
 - Add host-neigh plugin.
