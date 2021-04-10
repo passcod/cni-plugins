@@ -2,13 +2,13 @@
 
 ## Next (YYYY-MM-DD)
 
-- Removed WIP advertise plugin.
-- Added host-routes plugin.
-- Added host-neigh plugin.
-- Added ipam-ds-static plugin.
+- Remove WIP advertise plugin.
+- Add host-routes plugin.
+- Add host-neigh plugin.
+- Add ipam-ds-static plugin.
 - Breaking change: fields `reply::Interface.mac` and `config::RuntimeConfig.mac`
-  changed type to `Option<MacAddr>`.
-- Introduced a `MacAddr` type which wraps a `macaddr::MacAddr6` but
+  change type to `Option<MacAddr>`.
+- Introduce a `MacAddr` type which wraps a `macaddr::MacAddr6` but
   (de)serialises correctly to/from string rather than to/from `[u8; 6]`.
 - Compile out trace level logs in release builds for all plugins.
 - Breaking change: `install_logger` becomes `logger::install`, and new functions
