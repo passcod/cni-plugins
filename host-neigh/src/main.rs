@@ -11,7 +11,6 @@ use async_std::{
 use cni_plugin::{
 	error::CniError,
 	logger,
-	macaddr::MacAddr,
 	reply::{reply, SuccessReply},
 	Cni, Command, Inputs,
 };
@@ -25,6 +24,10 @@ use rtnetlink::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
+use crate::macordevice::MacOrDevice;
+
+mod macordevice;
 
 fn main() {
 	let mut logconfig = logger::default_config();
@@ -227,6 +230,10 @@ impl Trial {
 			link
 		};
 
+		if let Some(lladdr) = &mut self.neigh.lladdr {
+			lladdr.resolve(&mut nllh).await?;
+		}
+
 		if matches!(self.command, Command::Del) {
 			debug!("deleting {:?}", self.neigh);
 			self.neigh.del(&mut nlnh, link).await?;
@@ -241,12 +248,12 @@ impl Trial {
 	}
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, Eq, PartialEq)]
 struct Neigh {
 	pub address: IpAddr,
 	pub device: String,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub lladdr: Option<MacAddr>,
+	pub lladdr: Option<MacOrDevice>,
 }
 
 impl Neigh {
@@ -267,8 +274,9 @@ impl Neigh {
 		}
 
 		// UNWRAP: validated for add command
-		let lladdr = self.lladdr.unwrap();
-		let lladdr = lladdr.0.as_bytes();
+		let lladdr = self.lladdr.as_ref().unwrap();
+		// UNWRAP: already normalised to mac address at this point
+		let lladdr = lladdr.as_mac().unwrap().0.as_bytes();
 
 		debug!("adding neighbour {:?}", self);
 		nlnh.add(link, self.address)
@@ -303,7 +311,7 @@ impl Neigh {
 				continue;
 			}
 
-			if let Some(lladdr) = self.lladdr {
+			if let Some(lladdr) = &self.lladdr {
 				let ll = match neigh
 					.nlas
 					.iter()
@@ -321,7 +329,8 @@ impl Neigh {
 				};
 
 				debug!("neigh {}: lladdr={:?}, query={}", n, ll, lladdr);
-				if lladdr.0.as_bytes() != ll {
+				// UNWRAP: already normalised to mac address at this point
+				if lladdr.as_mac().unwrap().0.as_bytes() != ll {
 					continue;
 				}
 			}

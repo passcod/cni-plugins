@@ -2,6 +2,8 @@
 
 ## Next (YYYY-MM-DD)
 
+- Host-Neigh: add ability to resolve an lladdr from a device.
+
 ## v0.2.0 (2021-04-10)
 
 - Remove WIP advertise plugin.

@@ -30,8 +30,9 @@ evaluate to an array of Neigh objects, with these fields:
 
 - `address` (IP address as string, required): the IP of the neighbour.
 - `device` (string, required): the device name to add the neighbour to.
-- `lladdr` (MAC address as string, optional for `del`): the MAC address of the
-  neighbour.
+- `lladdr` (MAC address or interface name as string, optional for `del`): the
+  MAC address of the neighbour, or an interface/device name that will be
+  resolved into its MAC address.
 
 Returning an empty array is acceptable.
 
@@ -76,4 +77,5 @@ The plugin errors when:
 - the jq expression errors.
 - the jq evaluation times out.
 - it evaluates to an invalid structure.
-- any `critical` neighbour entry fails to apply.
+- an `lladdr` field is not a mac address nor an existing interface name.
+- an `lladdr` field is an interface name but that device does not have a MAC.

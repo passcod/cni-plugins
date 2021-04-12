@@ -767,6 +767,7 @@ dependencies = [
  "ipnetwork",
  "jq-rs",
  "log",
+ "macaddr",
  "rtnetlink",
  "serde",
  "serde_json",
