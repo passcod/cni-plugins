@@ -2,6 +2,8 @@
 
 ## Next (YYYY-MM-DD)
 
+## v0.3.0 (2021-04-12)
+
 - Host-Neigh: add ability to resolve an lladdr from a device.
 
 ## v0.2.0 (2021-04-10)

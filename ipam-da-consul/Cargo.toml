@@ -1,6 +1,6 @@
 [package]
 name = "ipam-da-consul"
-version = "0.2.0"
+version = "0.3.0"
 publish = false
 
 authors = ["Félix Saparelli <felix@passcod.name>"]
