@@ -40,7 +40,7 @@ date=$(date +%Y-%m-%d)
 echo "Next version to be $newver ($date), creating..."
 
 sed -E -i "s/^## Next.*$/## Next (YYYY-MM-DD)\n\n## v$newver ($date)/" CHANGELOG.md
-sed -E -i "s/^version = \"[0-9.]+\"/version = \"$newver\"/" */Cargo.toml
+sed -E -i "s/^version = \"$extver\"/version = \"$newver\"/" */Cargo.toml
 
 cargo check
 
