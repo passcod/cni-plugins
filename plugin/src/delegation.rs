@@ -210,9 +210,10 @@ async fn delegate_command(
 		let mut stdin = child.stdin.take().unwrap();
 		// UNWRAP: stdin configured above
 
-		debug!("copying bytes={} to stdin", stdin_bytes.len());
+		let stdin_len = stdin_bytes.len();
+		debug!("copying bytes={} to stdin", stdin_len);
 		let written = copy_buf(&mut stdin_bytes, &mut stdin).await?;
-		assert_eq!(written as usize, stdin_bytes.len());
+		assert_eq!(written as usize, stdin_len);
 
 		debug!("dropping stdin handle");
 	}
