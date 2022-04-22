@@ -1,3 +1,6 @@
+# Adopt-a-crate!
+**I am no longer working with Nomad, Consul, Kubernetes, or container runtime sysadmin, and so this repository is not maintained. Feel free to fork!** If you're committed, email me to get the crate name transferred.
+
 [![Crate release version](https://flat.badgen.net/crates/v/cni-plugin)](https://crates.io/crates/cni-plugin)
 [![Crate license: Apache 2.0 or MIT](https://flat.badgen.net/badge/license/Apache%202.0%20or%20MIT)][copyright]
 ![MSRV: latest stable](https://flat.badgen.net/badge/MSRV/latest%20stable/orange)
